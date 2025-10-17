@@ -379,7 +379,7 @@ export default function ReportsScreen() {
                 id: trip.id,
                 date: trip.date,
                 type: 'trip' as const,
-                description: trip.routeName,
+                description: trip.trailerNumber ? `${trip.routeName} - Trailer #${trip.trailerNumber}` : trip.routeName,
                 amount: trip.earnings,
                 isEarning: true,
                 category: undefined,

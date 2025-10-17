@@ -146,7 +146,11 @@ export default function HistoryScreen() {
               {summary.trips.length > 0 && (
                 <View style={[styles.dayDetails, { borderTopColor: theme.background }]}>
                   <Text style={[styles.detailsLabel, { color: theme.textSecondary }]}>
-                    {summary.trips.length} trip{summary.trips.length !== 1 ? 's' : ''}: {summary.trips.map(t => t.routeName).join(', ')}
+                    {summary.trips.length} trip{summary.trips.length !== 1 ? 's' : ''}: {summary.trips.map(t => {
+                      const parts = [t.routeName];
+                      if (t.trailerNumber) parts.push(`Trailer #${t.trailerNumber}`);
+                      return parts.join(' - ');
+                    }).join(', ')}
                   </Text>
                 </View>
               )}
