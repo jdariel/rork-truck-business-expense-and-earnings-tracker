@@ -41,13 +41,14 @@ export default function ScanReceiptScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
-    const access = requestFeatureAccess('receiptScanner');
-    setHasAccess(access);
-    if (!access) {
-      setTimeout(() => {
+    const checkAccess = async () => {
+      const access = requestFeatureAccess('receiptScanner');
+      setHasAccess(access);
+      if (!access) {
         router.back();
-      }, 0);
-    }
+      }
+    };
+    checkAccess();
   }, [requestFeatureAccess, router]);
 
   if (hasAccess === null) {
