@@ -134,39 +134,6 @@ function RootLayoutNav() {
           title: "Tax Estimator",
         }} 
       />
-      <Stack.Screen 
-        name="fuel-tracker" 
-        options={{ 
-          title: "Fuel Tracker",
-        }} 
-      />
-      <Stack.Screen 
-        name="add-fuel" 
-        options={{ 
-          title: "Add Fuel Entry",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="trucks" 
-        options={{ 
-          title: "My Trucks",
-        }} 
-      />
-      <Stack.Screen 
-        name="add-truck" 
-        options={{ 
-          title: "Add Truck",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="onboarding" 
-        options={{ 
-          headerShown: false,
-          presentation: "fullScreenModal",
-        }} 
-      />
     </Stack>
   );
 }
