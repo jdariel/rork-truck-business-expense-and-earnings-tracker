@@ -10,6 +10,7 @@ export interface Route {
 
 export interface Trip {
   id: string;
+  truckId?: string;
   routeId?: string;
   routeName: string;
   date: string;
@@ -23,6 +24,7 @@ export interface Trip {
 
 export interface Expense {
   id: string;
+  truckId?: string;
   date: string;
   category: ExpenseCategory;
   amount: number;

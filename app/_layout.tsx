@@ -8,6 +8,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BusinessProvider } from "@/hooks/business-store";
 import { AuthProvider } from "@/hooks/auth-store";
 import { ThemeProvider, useTheme } from "@/hooks/theme-store";
+import { SubscriptionProvider } from "@/hooks/subscription-store";
+import { TruckProvider } from "@/hooks/truck-store";
+import { FuelProvider } from "@/hooks/fuel-store";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -75,6 +78,87 @@ function RootLayoutNav() {
           title: "Trip Details",
         }} 
       />
+      <Stack.Screen 
+        name="edit-truck" 
+        options={{ 
+          title: "Edit Truck",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="edit-profile" 
+        options={{ 
+          title: "Edit Profile",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="edit-trip" 
+        options={{ 
+          title: "Edit Trip",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="edit-expense" 
+        options={{ 
+          title: "Edit Expense",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="edit-route" 
+        options={{ 
+          title: "Edit Route",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="upgrade" 
+        options={{ 
+          title: "Upgrade to Pro",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="tax-estimator" 
+        options={{ 
+          title: "Tax Estimator",
+        }} 
+      />
+      <Stack.Screen 
+        name="fuel-tracker" 
+        options={{ 
+          title: "Fuel Tracker",
+        }} 
+      />
+      <Stack.Screen 
+        name="add-fuel" 
+        options={{ 
+          title: "Add Fuel Entry",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="trucks" 
+        options={{ 
+          title: "My Trucks",
+        }} 
+      />
+      <Stack.Screen 
+        name="add-truck" 
+        options={{ 
+          title: "Add Truck",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="onboarding" 
+        options={{ 
+          headerShown: false,
+          presentation: "fullScreenModal",
+        }} 
+      />
     </Stack>
   );
 }
@@ -88,13 +172,19 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <BusinessProvider>
-              <GestureHandlerRootView style={styles.gestureHandler}>
-                <RootLayoutNav />
-              </GestureHandlerRootView>
-            </BusinessProvider>
-          </AuthProvider>
+          <SubscriptionProvider>
+            <AuthProvider>
+              <TruckProvider>
+                <FuelProvider>
+                  <BusinessProvider>
+                    <GestureHandlerRootView style={styles.gestureHandler}>
+                      <RootLayoutNav />
+                    </GestureHandlerRootView>
+                  </BusinessProvider>
+                </FuelProvider>
+              </TruckProvider>
+            </AuthProvider>
+          </SubscriptionProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
