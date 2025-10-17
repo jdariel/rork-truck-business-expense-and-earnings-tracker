@@ -54,21 +54,14 @@ export default function ReportsScreen() {
         weekTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
-    const trailersWithDates = weekTrips
-      .filter(trip => trip.trailerNumber)
-      .map(trip => ({
-        trailerNumber: trip.trailerNumber as string,
-        date: trip.date,
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date));
-
     return {
       totalEarnings,
       totalExpenses,
       netProfit: totalEarnings - totalExpenses,
       tripCount: weekTrips.length,
       expensesByCategory,
-      trailersWithDates,
+      weekTrips,
+      weekExpenses,
     };
   };
 
@@ -93,14 +86,6 @@ export default function ReportsScreen() {
         yearTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
-    const trailersWithDates = yearTrips
-      .filter(trip => trip.trailerNumber)
-      .map(trip => ({
-        trailerNumber: trip.trailerNumber as string,
-        date: trip.date,
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date));
-
     return {
       totalEarnings,
       totalExpenses,
@@ -109,7 +94,6 @@ export default function ReportsScreen() {
       expensesByCategory,
       yearTrips,
       yearExpenses,
-      trailersWithDates,
     };
   };
 
@@ -285,31 +269,12 @@ export default function ReportsScreen() {
                 : '$0.00'}
             </Text>
           </View>
-          <View style={[styles.statRow, { borderBottomColor: theme.border }]}>
+          <View style={styles.statRow}>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Daily Average</Text>
             <Text style={[styles.statValue, { color: theme.text }]}>
               {formatCurrency(currentSummary.totalEarnings / daysInPeriod)}
             </Text>
           </View>
-          {(currentSummary as any).trailersWithDates && (currentSummary as any).trailersWithDates.length > 0 && (
-            <View>
-              <View style={[styles.statRow, { borderBottomColor: theme.border }]}>
-                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Trailer Numbers</Text>
-              </View>
-              {(currentSummary as any).trailersWithDates.map((item: { trailerNumber: string; date: string }, index: number) => (
-                <View key={`${item.trailerNumber}-${item.date}-${index}`} style={[styles.trailerRow, { borderBottomColor: theme.border }]}>
-                  <Text style={[styles.trailerNumber, { color: theme.text }]}>#{item.trailerNumber}</Text>
-                  <Text style={[styles.trailerDate, { color: theme.textSecondary }]}>
-                    {new Date(item.date).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
       </View>
 
@@ -349,8 +314,8 @@ export default function ReportsScreen() {
         )}
       </View>
 
-      {/* Yearly Transactions List */}
-      {timePeriod === 'yearly' && (
+      {/* Transactions List */}
+      {(
         <View style={styles.statsSection}>
           <View style={styles.sectionHeader}>
             <List size={20} color={theme.primary} />
@@ -399,8 +364,17 @@ export default function ReportsScreen() {
           </ScrollView>
           
           {(() => {
-            const yearTrips = (currentSummary as any).yearTrips || [];
-            const yearExpenses = (currentSummary as any).yearExpenses || [];
+            const periodTrips = timePeriod === 'yearly' 
+              ? (currentSummary as any).yearTrips || []
+              : timePeriod === 'weekly'
+              ? (currentSummary as any).weekTrips || []
+              : (currentSummary as any).monthTrips || [];
+            
+            const periodExpenses = timePeriod === 'yearly'
+              ? (currentSummary as any).yearExpenses || []
+              : timePeriod === 'weekly'
+              ? (currentSummary as any).weekExpenses || []
+              : (currentSummary as any).monthExpenses || [];
             
             type Transaction = {
               id: string;
@@ -412,7 +386,7 @@ export default function ReportsScreen() {
             };
             
             const allTransactions: Transaction[] = [
-              ...(selectedCategory === 'all' ? yearTrips.map((trip: Trip) => ({
+              ...(selectedCategory === 'all' ? periodTrips.map((trip: Trip) => ({
                 id: trip.id,
                 date: trip.date,
                 type: 'trip' as const,
@@ -421,7 +395,7 @@ export default function ReportsScreen() {
                 isEarning: true,
                 category: undefined,
               })) : []),
-              ...yearExpenses
+              ...periodExpenses
                 .filter((expense: Expense) => selectedCategory === 'all' || expense.category === selectedCategory)
                 .map((expense: Expense) => ({
                   id: expense.id,
@@ -433,6 +407,8 @@ export default function ReportsScreen() {
                   category: expense.category,
                 })),
             ].sort((a, b) => b.date.localeCompare(a.date));
+            
+            const emptyMessage = timePeriod === 'weekly' ? 'week' : timePeriod === 'yearly' ? 'year' : 'month';
             
             return allTransactions.length > 0 ? (
               <View style={[styles.transactionsCard, { backgroundColor: theme.card }]}>
@@ -474,7 +450,7 @@ export default function ReportsScreen() {
               </View>
             ) : (
               <View style={[styles.emptyCategory, { backgroundColor: theme.card }]}>
-                <Text style={[styles.emptyCategoryText, { color: theme.textSecondary }]}>No transactions this year</Text>
+                <Text style={[styles.emptyCategoryText, { color: theme.textSecondary }]}>No transactions this {emptyMessage}</Text>
               </View>
             );
           })()}

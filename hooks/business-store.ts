@@ -226,6 +226,8 @@ export const [BusinessProvider, useBusiness] = createContextHook(() => {
       tripCount: monthTrips.length,
       expensesByCategory,
       trailerNumbers: uniqueTrailers,
+      monthTrips,
+      monthExpenses,
     } as any;
   };
 
