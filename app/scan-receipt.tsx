@@ -45,7 +45,9 @@ export default function ScanReceiptScreen() {
       const access = requestFeatureAccess('receiptScanner');
       setHasAccess(access);
       if (!access) {
-        router.back();
+        setTimeout(() => {
+          router.back();
+        }, 100);
       }
     };
     checkAccess();
