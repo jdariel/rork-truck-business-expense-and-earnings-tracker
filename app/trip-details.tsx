@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { router, useLocalSearchParams, Stack } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
-import { Calendar, MapPin, DollarSign, Fuel, Receipt, FileText, Trash2 } from "lucide-react-native";
+import { Calendar, MapPin, DollarSign, Fuel, Receipt, FileText, Trash2, Edit } from "lucide-react-native";
 
 export default function TripDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,9 +50,14 @@ export default function TripDetailsScreen() {
         options={{
           title: "Trip Details",
           headerRight: () => (
-            <TouchableOpacity onPress={handleDelete}>
-              <Trash2 size={22} color="#ef4444" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => router.push(`/edit-trip?id=${trip.id}`)}>
+                <Edit size={22} color="#3b82f6" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete}>
+                <Trash2 size={22} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
