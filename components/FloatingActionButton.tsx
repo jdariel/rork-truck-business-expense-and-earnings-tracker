@@ -85,7 +85,7 @@ export default function FloatingActionButton() {
         {actions.map((action, index) => {
           const translateY = animation.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, -(60 * (actions.length - index))],
+            outputRange: [0, -(70 * (actions.length - index))],
           });
 
           const opacity = animation.interpolate({
@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
     right: 20,
     bottom: Platform.OS === 'web' ? 20 : 90,
     alignItems: 'flex-end',
+    paddingRight: 4,
   },
   mainButton: {
     width: 60,
@@ -184,13 +185,14 @@ const styles = StyleSheet.create({
     bottom: 70,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
   },
   actionLabelContainer: {
     backgroundColor: '#fff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    marginRight: 12,
+    minWidth: 100,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -212,9 +214,9 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   actionCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
