@@ -38,7 +38,6 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
 
   const loadSubscription = useCallback(async () => {
     try {
-      setIsLoading(true);
       if (Platform.OS !== 'web') {
         const data = await AsyncStorage.getItem(STORAGE_KEY);
         if (data) {

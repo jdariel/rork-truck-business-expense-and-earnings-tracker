@@ -57,7 +57,6 @@ const darkTheme: Theme = {
 
 export const [ThemeProvider, useTheme] = createContextHook(() => {
   const [mode, setMode] = useState<ThemeMode>('light');
-  const [isLoading, setIsLoading] = useState(true);
 
   const loadTheme = async () => {
     try {
@@ -69,8 +68,6 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
       }
     } catch (error) {
       console.error('Error loading theme:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -109,6 +106,5 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     isDark: mode === 'dark',
     toggleTheme,
     setThemeMode,
-    isLoading,
-  }), [mode, theme, toggleTheme, setThemeMode, isLoading]);
+  }), [mode, theme, toggleTheme, setThemeMode]);
 });

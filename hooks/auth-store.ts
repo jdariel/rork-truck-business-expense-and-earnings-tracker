@@ -40,7 +40,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const loadUserFromStorage = async () => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true }));
       
       if (Platform.OS === 'web') {
         try {
@@ -63,7 +62,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               isLoading: false,
             });
           }
-        } catch (webError) {
+        } catch {
           console.log('AsyncStorage not available on web, using session state');
           setAuthState({
             user: null,

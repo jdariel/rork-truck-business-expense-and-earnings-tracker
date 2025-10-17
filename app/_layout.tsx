@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { StyleSheet, View, ActivityIndicator } from "react-native";
+import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BusinessProvider } from "@/hooks/business-store";
@@ -17,15 +17,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { theme, isLoading } = useTheme();
-  
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1e40af" />
-      </View>
-    );
-  }
+  const { theme } = useTheme();
   
   return (
     <Stack screenOptions={{ 
@@ -134,6 +126,44 @@ function RootLayoutNav() {
           title: "Tax Estimator",
         }} 
       />
+      <Stack.Screen 
+        name="fuel-tracker" 
+        options={{ 
+          title: "Fuel Tracker",
+        }} 
+      />
+      <Stack.Screen 
+        name="add-fuel" 
+        options={{ 
+          title: "Add Fuel Entry",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="fuel-details" 
+        options={{ 
+          title: "Fuel Entry Details",
+        }} 
+      />
+      <Stack.Screen 
+        name="trucks" 
+        options={{ 
+          title: "My Trucks",
+        }} 
+      />
+      <Stack.Screen 
+        name="add-truck" 
+        options={{ 
+          title: "Add Truck",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
+        name="truck-details" 
+        options={{ 
+          title: "Truck Details",
+        }} 
+      />
     </Stack>
   );
 }
@@ -170,10 +200,5 @@ const styles = StyleSheet.create({
   gestureHandler: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-  },
+
 });

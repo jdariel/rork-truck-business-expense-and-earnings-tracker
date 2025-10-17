@@ -18,7 +18,6 @@ export const [BusinessProvider, useBusiness] = createContextHook(() => {
 
   const loadData = async () => {
     try {
-      setIsLoading(true);
       
       if (Platform.OS === 'web') {
         // For web, use localStorage fallback if AsyncStorage fails
@@ -32,7 +31,7 @@ export const [BusinessProvider, useBusiness] = createContextHook(() => {
           if (routesData) setRoutes(JSON.parse(routesData));
           if (tripsData) setTrips(JSON.parse(tripsData));
           if (expensesData) setExpenses(JSON.parse(expensesData));
-        } catch (webError) {
+        } catch {
           console.log('AsyncStorage not available on web, using empty state');
         }
       } else {
