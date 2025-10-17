@@ -54,10 +54,13 @@ export default function ReportsScreen() {
         weekTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
-    const trailerNumbers = weekTrips
+    const trailersWithDates = weekTrips
       .filter(trip => trip.trailerNumber)
-      .map(trip => trip.trailerNumber as string);
-    const uniqueTrailers = Array.from(new Set(trailerNumbers));
+      .map(trip => ({
+        trailerNumber: trip.trailerNumber as string,
+        date: trip.date,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
 
     return {
       totalEarnings,
@@ -65,7 +68,7 @@ export default function ReportsScreen() {
       netProfit: totalEarnings - totalExpenses,
       tripCount: weekTrips.length,
       expensesByCategory,
-      trailerNumbers: uniqueTrailers,
+      trailersWithDates,
     };
   };
 
@@ -90,10 +93,13 @@ export default function ReportsScreen() {
         yearTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
-    const trailerNumbers = yearTrips
+    const trailersWithDates = yearTrips
       .filter(trip => trip.trailerNumber)
-      .map(trip => trip.trailerNumber as string);
-    const uniqueTrailers = Array.from(new Set(trailerNumbers));
+      .map(trip => ({
+        trailerNumber: trip.trailerNumber as string,
+        date: trip.date,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
 
     return {
       totalEarnings,
@@ -103,7 +109,7 @@ export default function ReportsScreen() {
       expensesByCategory,
       yearTrips,
       yearExpenses,
-      trailerNumbers: uniqueTrailers,
+      trailersWithDates,
     };
   };
 
@@ -285,12 +291,23 @@ export default function ReportsScreen() {
               {formatCurrency(currentSummary.totalEarnings / daysInPeriod)}
             </Text>
           </View>
-          {(currentSummary as any).trailerNumbers && (currentSummary as any).trailerNumbers.length > 0 && (
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Trailer Numbers</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {(currentSummary as any).trailerNumbers.join(', ')}
-              </Text>
+          {(currentSummary as any).trailersWithDates && (currentSummary as any).trailersWithDates.length > 0 && (
+            <View>
+              <View style={[styles.statRow, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Trailer Numbers</Text>
+              </View>
+              {(currentSummary as any).trailersWithDates.map((item: { trailerNumber: string; date: string }, index: number) => (
+                <View key={`${item.trailerNumber}-${item.date}-${index}`} style={[styles.trailerRow, { borderBottomColor: theme.border }]}>
+                  <Text style={[styles.trailerNumber, { color: theme.text }]}>#{item.trailerNumber}</Text>
+                  <Text style={[styles.trailerDate, { color: theme.textSecondary }]}>
+                    {new Date(item.date).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -766,5 +783,23 @@ const styles = StyleSheet.create({
   },
   categoryFilterTextActive: {
     color: '#fff',
+  },
+  trailerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  trailerNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  trailerDate: {
+    fontSize: 13,
+    color: '#6b7280',
   },
 });
