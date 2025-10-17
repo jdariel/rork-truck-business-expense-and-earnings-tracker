@@ -1,18 +1,19 @@
+import React, { useMemo, useCallback } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from "expo-router";
 import { Plus, TrendingUp, TrendingDown, Truck, MapPin } from "lucide-react-native";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
-import { useMemo } from "react";
-export default function DashboardScreen() {
+
+const DashboardScreen = React.memo(function DashboardScreen() {
   const { totals, trips, expenses, isLoading } = useBusiness();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return `${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
+  }, []);
 
   const todayData = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -25,7 +26,18 @@ export default function DashboardScreen() {
     return { todayTrips, todayExpenses, todayEarnings, todayExpensesTotal };
   }, [trips, expenses]);
 
-  // Show loading state after all hooks are called
+  const handleAddTrip = useCallback(() => {
+    router.push('/add-trip');
+  }, []);
+
+  const handleAddExpense = useCallback(() => {
+    router.push('/add-expense');
+  }, []);
+
+  const handleTripPress = useCallback((tripId: string) => {
+    router.push(`/trip-details?id=${tripId}`);
+  }, []);
+
   if (isLoading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.primary }]}>
@@ -53,14 +65,14 @@ export default function DashboardScreen() {
       <View style={styles.quickActions}>
         <TouchableOpacity 
           style={[styles.actionButton, styles.tripButton]}
-          onPress={() => router.push('/add-trip')}
+          onPress={handleAddTrip}
         >
           <Plus size={20} color="#fff" />
           <Text style={styles.actionButtonText}>Add Trip</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.actionButton, styles.expenseButton]}
-          onPress={() => router.push('/add-expense')}
+          onPress={handleAddExpense}
         >
           <Plus size={20} color="#fff" />
           <Text style={styles.actionButtonText}>Add Expense</Text>
@@ -138,7 +150,7 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             key={trip.id} 
             style={[styles.activityItem, { backgroundColor: theme.card }]}
-            onPress={() => router.push(`/trip-details?id=${trip.id}`)}
+            onPress={() => handleTripPress(trip.id)}
           >
             <View style={styles.activityLeft}>
               <Text style={[styles.activityRoute, { color: theme.text }]}>{trip.routeName}</Text>
@@ -156,7 +168,9 @@ export default function DashboardScreen() {
       </ScrollView>
     </View>
   );
-}
+});
+
+export default DashboardScreen;
 
 const styles = StyleSheet.create({
   container: {

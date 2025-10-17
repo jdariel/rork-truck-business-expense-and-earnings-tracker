@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from "@/hooks/theme-store";
 import { SubscriptionProvider } from "@/hooks/subscription-store";
 import { TruckProvider } from "@/hooks/truck-store";
 import { FuelProvider } from "@/hooks/fuel-store";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -181,25 +182,27 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <SubscriptionProvider>
-            <AuthProvider>
-              <TruckProvider>
-                <FuelProvider>
-                  <BusinessProvider>
-                    <GestureHandlerRootView style={styles.gestureHandler}>
-                      <RootLayoutNav />
-                    </GestureHandlerRootView>
-                  </BusinessProvider>
-                </FuelProvider>
-              </TruckProvider>
-            </AuthProvider>
-          </SubscriptionProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <SubscriptionProvider>
+              <AuthProvider>
+                <TruckProvider>
+                  <FuelProvider>
+                    <BusinessProvider>
+                      <GestureHandlerRootView style={styles.gestureHandler}>
+                        <RootLayoutNav />
+                      </GestureHandlerRootView>
+                    </BusinessProvider>
+                  </FuelProvider>
+                </TruckProvider>
+              </AuthProvider>
+            </SubscriptionProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
