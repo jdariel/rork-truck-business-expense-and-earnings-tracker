@@ -115,7 +115,7 @@ export default function ScanReceiptScreen() {
     try {
       setIsProcessing(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: 0.5,
         base64: true,
       });
 
@@ -136,6 +136,14 @@ export default function ScanReceiptScreen() {
 
   const processReceipt = async (base64Image: string) => {
     try {
+      console.log('Processing receipt with AI...');
+      console.log('Base64 image length:', base64Image.length);
+      console.log('TOOLKIT_URL:', process.env.EXPO_PUBLIC_TOOLKIT_URL);
+
+      if (!process.env.EXPO_PUBLIC_TOOLKIT_URL) {
+        throw new Error('EXPO_PUBLIC_TOOLKIT_URL is not configured');
+      }
+
       const data = await generateObject({
         schema: ReceiptDataSchema,
         messages: [
@@ -155,11 +163,26 @@ export default function ScanReceiptScreen() {
         ],
       });
 
+      console.log('Receipt processed successfully:', data);
       setExtractedData(data);
       setIsProcessing(false);
     } catch (error) {
       console.error('Error processing receipt:', error);
-      Alert.alert('Error', 'Failed to process receipt. Please try again.');
+      
+      let errorMessage = 'Failed to process receipt. Please try again.';
+      
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        if (error.message.includes('Network request failed')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('TOOLKIT_URL')) {
+          errorMessage = 'AI service is not configured. Please contact support.';
+        }
+      }
+      
+      Alert.alert('Error processing receipt', errorMessage);
       setIsProcessing(false);
       setCapturedImage(null);
     }
