@@ -206,7 +206,7 @@ export default function DayDetailsScreen() {
               {expense.notes && (
                 <Text style={styles.notesText}>{expense.notes}</Text>
               )}
-              {expense.receiptImage && (
+              {expense.receiptImage && expense.receiptImage.trim() !== '' && (
                 <View style={styles.receiptPreview}>
                   <Image 
                     source={{ uri: expense.receiptImage }} 

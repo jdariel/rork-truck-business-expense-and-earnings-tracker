@@ -163,7 +163,7 @@ export default function EditExpenseScreen() {
             />
           </View>
 
-          {receiptImage && (
+          {receiptImage && receiptImage.trim() !== '' && (
             <View style={styles.inputGroup}>
               <View style={styles.receiptHeader}>
                 <Text style={[styles.label, { color: theme.text }]}>Receipt Image</Text>

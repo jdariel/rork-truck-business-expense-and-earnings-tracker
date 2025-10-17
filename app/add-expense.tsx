@@ -183,7 +183,7 @@ export default function AddExpenseScreen() {
 
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: theme.text }]}>Receipt Photo</Text>
-          {receiptImage ? (
+          {receiptImage && receiptImage.trim() !== '' ? (
             <View style={styles.receiptContainer}>
               <Image source={{ uri: receiptImage }} style={styles.receiptImage} />
               <TouchableOpacity 

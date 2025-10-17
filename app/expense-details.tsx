@@ -104,7 +104,7 @@ export default function ExpenseDetailsScreen() {
             </View>
           )}
 
-          {expense.receiptImage && (
+          {expense.receiptImage && expense.receiptImage.trim() !== '' && (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Receipt Photo</Text>
               <TouchableOpacity 
@@ -150,11 +150,13 @@ export default function ExpenseDetailsScreen() {
           >
             <X size={28} color="#fff" />
           </TouchableOpacity>
-          <Image 
-            source={{ uri: expense.receiptImage }} 
-            style={styles.fullImage}
-            resizeMode="contain"
-          />
+          {expense.receiptImage && expense.receiptImage.trim() !== '' && (
+            <Image 
+              source={{ uri: expense.receiptImage }} 
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </Modal>
     </>
