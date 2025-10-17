@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from "react";
 import { router } from "expo-router";
-import { Plus, Search, MapPin, DollarSign, Trash2 } from "lucide-react-native";
+import { Plus, Search, MapPin, DollarSign, Trash2, Edit } from "lucide-react-native";
 import { useBusiness, useRouteSearch } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
 import { Route } from "@/types/business";
@@ -158,6 +158,15 @@ export default function RoutesScreen() {
                 <Text style={[styles.routeNameText, { color: theme.text }]}>{route.name}</Text>
               </View>
               <View style={styles.routeActions}>
+                <TouchableOpacity
+                  style={styles.actionIcon}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push(`/edit-route?id=${route.id}`);
+                  }}
+                >
+                  <Edit size={18} color="#3b82f6" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionIcon}
                   onPress={(e) => {

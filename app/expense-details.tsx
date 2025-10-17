@@ -3,7 +3,7 @@ import { useState } from "react";
 import { router, useLocalSearchParams, Stack } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
 import { EXPENSE_CATEGORIES } from "@/constants/categories";
-import { Calendar, Trash2, X } from "lucide-react-native";
+import { Calendar, Trash2, X, Edit } from "lucide-react-native";
 
 export default function ExpenseDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,9 +51,14 @@ export default function ExpenseDetailsScreen() {
         options={{
           title: "Expense Details",
           headerRight: () => (
-            <TouchableOpacity onPress={handleDelete}>
-              <Trash2 size={22} color="#ef4444" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => router.push(`/edit-expense?id=${expense.id}`)}>
+                <Edit size={22} color="#3b82f6" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete}>
+                <Trash2 size={22} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />

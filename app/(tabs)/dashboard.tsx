@@ -138,7 +138,7 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             key={trip.id} 
             style={[styles.activityItem, { backgroundColor: theme.card }]}
-            onPress={() => router.push(`/day-details?date=${trip.date}`)}
+            onPress={() => router.push(`/trip-details?id=${trip.id}`)}
           >
             <View style={styles.activityLeft}>
               <Text style={[styles.activityRoute, { color: theme.text }]}>{trip.routeName}</Text>

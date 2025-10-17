@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Image } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
-import { Calendar, TrendingUp, TrendingDown, Trash2, MapPin, Camera } from "lucide-react-native";
+import { Calendar, TrendingUp, TrendingDown, Trash2, MapPin, Camera, Edit } from "lucide-react-native";
 import { getCategoryIcon, getCategoryLabel } from "@/constants/categories";
 
 export default function DayDetailsScreen() {
@@ -101,18 +101,36 @@ export default function DayDetailsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Trips ({summary.trips.length})</Text>
         {summary.trips.map(trip => (
-          <View key={trip.id} style={styles.itemCard}>
+          <TouchableOpacity 
+            key={trip.id} 
+            style={styles.itemCard}
+            onPress={() => router.push(`/trip-details?id=${trip.id}`)}
+          >
             <View style={styles.itemHeader}>
               <View style={styles.itemInfo}>
                 <MapPin size={16} color="#1e40af" />
                 <Text style={styles.itemTitle}>{trip.routeName}</Text>
               </View>
-              <TouchableOpacity
-                onPress={() => handleDeleteTrip(trip.id, trip.routeName)}
-                style={styles.deleteButton}
-              >
-                <Trash2 size={16} color="#ef4444" />
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push(`/edit-trip?id=${trip.id}`);
+                  }}
+                  style={styles.editButton}
+                >
+                  <Edit size={16} color="#3b82f6" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTrip(trip.id, trip.routeName);
+                  }}
+                  style={styles.deleteButton}
+                >
+                  <Trash2 size={16} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.itemDetails}>
               {trip.trailerNumber && (
@@ -133,7 +151,7 @@ export default function DayDetailsScreen() {
                 <Text style={styles.notesText}>{trip.notes}</Text>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
         {summary.trips.length === 0 && (
           <Text style={styles.emptyText}>No trips recorded</Text>
@@ -162,15 +180,26 @@ export default function DayDetailsScreen() {
                   <Text style={styles.categoryText}>{getCategoryLabel(expense.category)}</Text>
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDeleteExpense(expense.id, expense.description);
-                }}
-                style={styles.deleteButton}
-              >
-                <Trash2 size={16} color="#ef4444" />
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push(`/edit-expense?id=${expense.id}`);
+                  }}
+                  style={styles.editButton}
+                >
+                  <Edit size={14} color="#3b82f6" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDeleteExpense(expense.id, expense.description);
+                  }}
+                  style={styles.deleteButton}
+                >
+                  <Trash2 size={16} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.itemDetails}>
               <Text style={styles.expenseAmount}>-{formatCurrency(expense.amount)}</Text>
@@ -298,6 +327,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    padding: 4,
   },
   deleteButton: {
     padding: 4,

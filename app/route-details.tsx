@@ -1,11 +1,11 @@
-import { StyleSheet, Text, View, ScrollView, Alert } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { StyleSheet, Text, View, ScrollView, Alert, TouchableOpacity } from "react-native";
+import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
-import { MapPin, DollarSign, Calendar, FileText } from "lucide-react-native";
+import { MapPin, DollarSign, Calendar, FileText, Edit, Trash2 } from "lucide-react-native";
 
 export default function RouteDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const { routes, trips } = useBusiness();
+  const { routes, trips, deleteRoute } = useBusiness();
   
   const route = routes.find(r => r.id === id);
   const routeTrips = trips.filter(t => t.routeName === route?.name);
@@ -19,14 +19,48 @@ export default function RouteDetailsScreen() {
   }
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    return `${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Route",
+      `Are you sure you want to delete "${route.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteRoute(route.id);
+            router.back();
+          },
+        },
+      ]
+    );
   };
 
   const totalEarnings = routeTrips.reduce((sum, trip) => sum + trip.earnings, 0);
   const averageEarnings = routeTrips.length > 0 ? totalEarnings / routeTrips.length : 0;
 
   return (
-    <ScrollView style={styles.container}>
+    <>
+      <Stack.Screen
+        options={{
+          title: "Route Details",
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => router.push(`/edit-route?id=${route.id}`)}>
+                <Edit size={22} color="#3b82f6" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete}>
+                <Trash2 size={22} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
+      <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.routeInfo}>
           <MapPin size={24} color="#1e40af" />
@@ -88,6 +122,7 @@ export default function RouteDetailsScreen() {
         )}
       </View>
     </ScrollView>
+    </>
   );
 }
 
