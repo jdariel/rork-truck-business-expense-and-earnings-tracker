@@ -7,7 +7,7 @@ import {
   Text,
   Platform,
 } from 'react-native';
-import { Plus, DollarSign, TrendingDown, Fuel } from 'lucide-react-native';
+import { Plus, DollarSign, TrendingDown, Fuel, Camera } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/theme-store';
 
@@ -50,6 +50,15 @@ export default function FloatingActionButton() {
         router.push('/add-fuel');
       },
       color: '#f59e0b',
+    },
+    {
+      icon: <Camera size={20} color="#fff" />,
+      label: 'Scan Receipt',
+      onPress: () => {
+        toggleMenu();
+        router.push('/scan-receipt');
+      },
+      color: '#8b5cf6',
     },
   ];
 
