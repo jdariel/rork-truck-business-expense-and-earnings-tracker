@@ -10,6 +10,7 @@ export interface FuelEntry {
   isFillUp: boolean;
   notes?: string;
   receiptImage?: string;
+  mpg?: number;
   createdAt: string;
 }
 

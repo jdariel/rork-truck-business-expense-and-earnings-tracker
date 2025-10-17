@@ -146,6 +146,13 @@ function RootLayoutNav() {
         }} 
       />
       <Stack.Screen 
+        name="edit-fuel" 
+        options={{ 
+          title: "Edit Fuel Entry",
+          presentation: "modal",
+        }} 
+      />
+      <Stack.Screen 
         name="trucks" 
         options={{ 
           title: "My Trucks",
