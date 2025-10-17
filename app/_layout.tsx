@@ -172,6 +172,21 @@ function RootLayoutNav() {
           title: "Truck Details",
         }} 
       />
+      <Stack.Screen 
+        name="scan-receipt" 
+        options={{ 
+          title: "Scan Receipt",
+          headerShown: false,
+          presentation: "fullScreenModal",
+        }} 
+      />
+      <Stack.Screen 
+        name="onboarding" 
+        options={{ 
+          headerShown: false,
+          presentation: "fullScreenModal",
+        }} 
+      />
     </Stack>
   );
 }

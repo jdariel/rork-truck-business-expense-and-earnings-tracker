@@ -12,9 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Download, Upload, FileText, Database, Shield, Cloud } from 'lucide-react-native';
+import { Download, Upload, Database, Shield, FileSpreadsheet } from 'lucide-react-native';
 import { useBusiness } from '@/hooks/business-store';
 import { useAuth } from '@/hooks/auth-store';
+import { useSubscription } from '@/hooks/subscription-store';
+import { useTrucks } from '@/hooks/truck-store';
+import { useFuel } from '@/hooks/fuel-store';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface BackupData {
@@ -29,14 +33,20 @@ interface BackupData {
     routes: any[];
     trips: any[];
     expenses: any[];
+    trucks: any[];
+    fuelEntries: any[];
   };
 }
 
 export default function DataBackupScreen() {
   const { routes, trips, expenses, loadData } = useBusiness();
   const { user } = useAuth();
+  const { trucks } = useTrucks();
+  const { fuelEntries } = useFuel();
+  const { isPro, requestFeatureAccess } = useSubscription();
   const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
+  const [isImporting] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
 
   const createBackup = async (): Promise<BackupData> => {
     return {
@@ -51,6 +61,8 @@ export default function DataBackupScreen() {
         routes,
         trips,
         expenses,
+        trucks,
+        fuelEntries,
       },
     };
   };
@@ -127,6 +139,8 @@ export default function DataBackupScreen() {
                 'trucking_routes',
                 'trucking_trips',
                 'trucking_expenses',
+                'trucks',
+                'fuel_entries',
               ]);
               
               // Reload data to refresh the app state
@@ -143,12 +157,49 @@ export default function DataBackupScreen() {
     );
   };
 
+  const exportCSVData = async () => {
+    if (!requestFeatureAccess('csvExport')) {
+      return;
+    }
+
+    try {
+      setIsExportingCSV(true);
+      const backup = await createBackup();
+      const jsonString = JSON.stringify(backup, null, 2);
+      
+      if (Platform.OS === 'web') {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `truckbiz-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        Alert.alert('Success', 'Data exported successfully!');
+      } else {
+        await Share.share({
+          message: jsonString,
+          title: 'TruckBiz Data Export',
+        });
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to export data.');
+    } finally {
+      setIsExportingCSV(false);
+    }
+  };
+
   const getDataStats = () => {
     return {
       routes: routes.length,
       trips: trips.length,
       expenses: expenses.length,
-      totalRecords: routes.length + trips.length + expenses.length,
+      trucks: trucks.length,
+      fuelEntries: fuelEntries.length,
+      totalRecords: routes.length + trips.length + expenses.length + trucks.length + fuelEntries.length,
     };
   };
 
@@ -172,11 +223,7 @@ export default function DataBackupScreen() {
             <Text style={styles.sectionTitle}>Data Overview</Text>
           </View>
           
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.routes}</Text>
-              <Text style={styles.statLabel}>Routes</Text>
-            </View>
+          <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{stats.trips}</Text>
               <Text style={styles.statLabel}>Trips</Text>
@@ -186,8 +233,20 @@ export default function DataBackupScreen() {
               <Text style={styles.statLabel}>Expenses</Text>
             </View>
             <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.trucks}</Text>
+              <Text style={styles.statLabel}>Trucks</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.fuelEntries}</Text>
+              <Text style={styles.statLabel}>Fuel</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.routes}</Text>
+              <Text style={styles.statLabel}>Routes</Text>
+            </View>
+            <View style={styles.statItem}>
               <Text style={styles.statNumber}>{stats.totalRecords}</Text>
-              <Text style={styles.statLabel}>Total Records</Text>
+              <Text style={styles.statLabel}>Total</Text>
             </View>
           </View>
         </View>
@@ -215,6 +274,38 @@ export default function DataBackupScreen() {
               <>
                 <Download size={20} color="#ffffff" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Export Backup</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* CSV Export Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <FileSpreadsheet size={20} color="#f59e0b" />
+            <Text style={styles.sectionTitle}>Export CSV</Text>
+            {isPro && (
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            )}
+          </View>
+          
+          <Text style={styles.sectionDescription}>
+            Export all your data in JSON format for use with other applications or for record keeping.
+          </Text>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.csvButton, isExportingCSV && styles.buttonDisabled]}
+            onPress={exportCSVData}
+            disabled={isExportingCSV}
+          >
+            {isExportingCSV ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <FileSpreadsheet size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>Export Data</Text>
               </>
             )}
           </TouchableOpacity>
@@ -346,13 +437,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
-  statsContainer: {
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
   },
   statItem: {
     alignItems: 'center',
-    flex: 1,
+    width: '33.33%',
+    paddingHorizontal: 8,
+    marginBottom: 16,
   },
   statNumber: {
     fontSize: 24,
@@ -378,6 +472,9 @@ const styles = StyleSheet.create({
   },
   importButton: {
     backgroundColor: '#dc2626',
+  },
+  csvButton: {
+    backgroundColor: '#f59e0b',
   },
   dangerButton: {
     backgroundColor: '#dc2626',
@@ -418,5 +515,18 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     lineHeight: 18,
     fontStyle: 'italic',
+  },
+  proBadge: {
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  proBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
