@@ -115,6 +115,9 @@ export default function DayDetailsScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.itemDetails}>
+              {trip.trailerNumber && (
+                <Text style={styles.trailerText}>Trailer: {trip.trailerNumber}</Text>
+              )}
               <Text style={styles.earningsText}>+{formatCurrency(trip.earnings)}</Text>
               {(trip.fuelCost || trip.otherExpenses) && (
                 <View style={styles.tripExpenses}>
@@ -333,6 +336,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  trailerText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+    marginBottom: 4,
   },
   emptyText: {
     textAlign: 'center',
