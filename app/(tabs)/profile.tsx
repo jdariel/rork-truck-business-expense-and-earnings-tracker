@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/auth-store';
 import { useTheme } from '@/hooks/theme-store';
-import { User, LogIn, Moon, Sun, Mail, Truck, Database, LogOut, ChevronRight, Edit, Bell, Shield, HelpCircle, FileText, Info } from 'lucide-react-native';
+import { User, LogIn, Moon, Sun, Mail, Truck, Database, LogOut, ChevronRight, Edit, Bell, Shield, HelpCircle, FileText, Info, Fuel } from 'lucide-react-native';
 
 export default function ProfileTab() {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
@@ -113,6 +113,45 @@ export default function ProfileTab() {
                   ) : (
                     <Text style={[styles.menuItemSubtitle, { color: theme.textSecondary }]}>Add your truck details</Text>
                   )}
+                </View>
+              </View>
+              <ChevronRight size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.section, { backgroundColor: theme.surface }]}>
+            <View style={styles.sectionHeader}>
+              <Fuel size={20} color={theme.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Features</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: theme.border }]}
+              onPress={() => router.push('/fuel-tracker')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={[styles.menuItemIcon, { backgroundColor: theme.background }]}>
+                  <Fuel size={20} color={theme.primary} />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>Fuel Tracker</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: theme.textSecondary }]}>Track MPG & fuel costs</Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={() => router.push('/tax-estimator')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={[styles.menuItemIcon, { backgroundColor: theme.background }]}>
+                  <FileText size={20} color={theme.primary} />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>Tax Estimator</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: theme.textSecondary }]}>Estimate your tax deductions</Text>
                 </View>
               </View>
               <ChevronRight size={20} color={theme.textSecondary} />
