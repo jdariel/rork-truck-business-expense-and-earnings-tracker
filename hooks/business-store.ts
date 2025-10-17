@@ -212,6 +212,11 @@ export const [BusinessProvider, useBusiness] = createContextHook(() => {
         monthTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
+    const trailerNumbers = monthTrips
+      .filter(trip => trip.trailerNumber)
+      .map(trip => trip.trailerNumber as string);
+    const uniqueTrailers = Array.from(new Set(trailerNumbers));
+
     return {
       month: monthStr,
       year,
@@ -220,7 +225,8 @@ export const [BusinessProvider, useBusiness] = createContextHook(() => {
       netProfit: totalEarnings - totalExpenses,
       tripCount: monthTrips.length,
       expensesByCategory,
-    };
+      trailerNumbers: uniqueTrailers,
+    } as any;
   };
 
   // Calculate totals for dashboard

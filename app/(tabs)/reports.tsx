@@ -54,12 +54,18 @@ export default function ReportsScreen() {
         weekTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
+    const trailerNumbers = weekTrips
+      .filter(trip => trip.trailerNumber)
+      .map(trip => trip.trailerNumber as string);
+    const uniqueTrailers = Array.from(new Set(trailerNumbers));
+
     return {
       totalEarnings,
       totalExpenses,
       netProfit: totalEarnings - totalExpenses,
       tripCount: weekTrips.length,
       expensesByCategory,
+      trailerNumbers: uniqueTrailers,
     };
   };
 
@@ -84,6 +90,11 @@ export default function ReportsScreen() {
         yearTrips.reduce((sum, trip) => sum + (trip.fuelCost || 0), 0);
     }
 
+    const trailerNumbers = yearTrips
+      .filter(trip => trip.trailerNumber)
+      .map(trip => trip.trailerNumber as string);
+    const uniqueTrailers = Array.from(new Set(trailerNumbers));
+
     return {
       totalEarnings,
       totalExpenses,
@@ -92,6 +103,7 @@ export default function ReportsScreen() {
       expensesByCategory,
       yearTrips,
       yearExpenses,
+      trailerNumbers: uniqueTrailers,
     };
   };
 
@@ -273,6 +285,14 @@ export default function ReportsScreen() {
               {formatCurrency(currentSummary.totalEarnings / daysInPeriod)}
             </Text>
           </View>
+          {(currentSummary as any).trailerNumbers && (currentSummary as any).trailerNumbers.length > 0 && (
+            <View style={styles.statRow}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Trailer Numbers</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {(currentSummary as any).trailerNumbers.join(', ')}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
