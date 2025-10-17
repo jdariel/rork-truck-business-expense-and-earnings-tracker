@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,38 +31,44 @@ type ReceiptData = z.infer<typeof ReceiptDataSchema>;
 export default function ScanReceiptScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { requestFeatureAccess } = useSubscription();
+  const { hasFeatureAccess } = useSubscription();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
-  useEffect(() => {
-    const checkAccess = async () => {
-      const access = requestFeatureAccess('receiptScanner');
-      setHasAccess(access);
-      if (!access) {
-        setTimeout(() => {
-          router.back();
-        }, 100);
-      }
-    };
-    checkAccess();
-  }, [requestFeatureAccess, router]);
-
-  if (hasAccess === null) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
+  const hasAccess = hasFeatureAccess('receiptScanner');
 
   if (!hasAccess) {
-    return null;
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.permissionContainer}>
+          <Sparkles size={64} color={theme.primary} style={styles.permissionIcon} />
+          <Text style={[styles.permissionTitle, { color: theme.text }]}>
+            Premium Feature
+          </Text>
+          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
+            Receipt scanning with AI is a premium feature. Upgrade to Rork Pro to automatically extract expense data from receipts.
+          </Text>
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push('/upgrade')}
+          >
+            <Text style={styles.permissionButtonText}>Upgrade to Pro</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   if (!permission) {
