@@ -2,7 +2,7 @@ import React, { useMemo, useCallback } from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from "expo-router";
-import { Plus, TrendingUp, TrendingDown, Truck, MapPin } from "lucide-react-native";
+import { TrendingUp, TrendingDown, Truck, MapPin } from "lucide-react-native";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
 import FloatingActionButton from "@/components/FloatingActionButton";
@@ -26,14 +26,6 @@ const DashboardScreen = React.memo(function DashboardScreen() {
     
     return { todayTrips, todayExpenses, todayEarnings, todayExpensesTotal };
   }, [trips, expenses]);
-
-  const handleAddTrip = useCallback(() => {
-    router.push('/add-trip');
-  }, []);
-
-  const handleAddExpense = useCallback(() => {
-    router.push('/add-expense');
-  }, []);
 
   const handleTripPress = useCallback((tripId: string) => {
     router.push(`/trip-details?id=${tripId}`);
@@ -60,24 +52,6 @@ const DashboardScreen = React.memo(function DashboardScreen() {
           month: 'long', 
           day: 'numeric' 
         })}</Text>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.tripButton]}
-          onPress={handleAddTrip}
-        >
-          <Plus size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Add Trip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.expenseButton]}
-          onPress={handleAddExpense}
-        >
-          <Plus size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Add Expense</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Today's Summary */}
@@ -203,31 +177,6 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 14,
     color: '#dbeafe',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  tripButton: {
-    backgroundColor: '#10b981',
-  },
-  expenseButton: {
-    backgroundColor: '#ef4444',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   section: {
     padding: 16,
