@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Plus, TrendingUp, TrendingDown, Truck, MapPin } from "lucide-react-native";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
+import FloatingActionButton from "@/components/FloatingActionButton";
 
 const DashboardScreen = React.memo(function DashboardScreen() {
   const { totals, trips, expenses, isLoading } = useBusiness();
@@ -166,6 +167,8 @@ const DashboardScreen = React.memo(function DashboardScreen() {
 
       <View style={styles.bottomPadding} />
       </ScrollView>
+      
+      <FloatingActionButton />
     </View>
   );
 });
