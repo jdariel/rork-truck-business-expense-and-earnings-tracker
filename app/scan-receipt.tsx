@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -37,10 +37,26 @@ export default function ScanReceiptScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
-  if (!requestFeatureAccess('receiptScanner')) {
-    router.back();
+  useEffect(() => {
+    const access = requestFeatureAccess('receiptScanner');
+    setHasAccess(access);
+    if (!access) {
+      router.back();
+    }
+  }, [requestFeatureAccess, router]);
+
+  if (hasAccess === null) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!hasAccess) {
     return null;
   }
 
