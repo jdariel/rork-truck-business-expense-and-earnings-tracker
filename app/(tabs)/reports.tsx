@@ -16,7 +16,7 @@ export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('monthly');
-  const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'all' | 'trips'>('all');
 
   const formatCurrency = (amount: number) => {
     return `${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -343,6 +343,21 @@ export default function ReportsScreen() {
                 selectedCategory === 'all' && styles.categoryFilterTextActive
               ]}>All</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.categoryFilterButton,
+                { backgroundColor: theme.background, borderColor: theme.border },
+                selectedCategory === 'trips' && styles.categoryFilterButtonActive
+              ]}
+              onPress={() => setSelectedCategory('trips')}
+            >
+              <Text style={styles.categoryFilterIcon}>🚛</Text>
+              <Text style={[
+                styles.categoryFilterText,
+                { color: theme.textSecondary },
+                selectedCategory === 'trips' && styles.categoryFilterTextActive
+              ]}>Trips Only</Text>
+            </TouchableOpacity>
             {EXPENSE_CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat.value}
@@ -386,7 +401,7 @@ export default function ReportsScreen() {
             };
             
             const allTransactions: Transaction[] = [
-              ...(selectedCategory === 'all' ? periodTrips.map((trip: Trip) => ({
+              ...(selectedCategory === 'all' || selectedCategory === 'trips' ? periodTrips.map((trip: Trip) => ({
                 id: trip.id,
                 date: trip.date,
                 type: 'trip' as const,
@@ -395,7 +410,7 @@ export default function ReportsScreen() {
                 isEarning: true,
                 category: undefined,
               })) : []),
-              ...periodExpenses
+              ...(selectedCategory === 'trips' ? [] : periodExpenses
                 .filter((expense: Expense) => selectedCategory === 'all' || expense.category === selectedCategory)
                 .map((expense: Expense) => ({
                   id: expense.id,
@@ -405,7 +420,7 @@ export default function ReportsScreen() {
                   amount: expense.amount,
                   isEarning: false,
                   category: expense.category,
-                })),
+                }))),
             ].sort((a, b) => b.date.localeCompare(a.date));
             
             const emptyMessage = timePeriod === 'weekly' ? 'week' : timePeriod === 'yearly' ? 'year' : 'month';
