@@ -43,12 +43,12 @@ export default function FuelTrackerScreen() {
 
   const handleAddFuel = () => {
     if (requestFeatureAccess('fuelTracker')) {
-      router.push('/add-fuel' as any);
+      router.push('/add-fuel');
     }
   };
 
   const handleEntryPress = (entryId: string) => {
-    router.push(`/fuel-details?id=${entryId}` as any);
+    router.push(`/fuel-details?id=${entryId}`);
   };
 
   const formatDate = (dateStr: string) => {

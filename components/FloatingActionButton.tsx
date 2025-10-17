@@ -47,7 +47,7 @@ export default function FloatingActionButton() {
       label: 'Add Fuel',
       onPress: () => {
         toggleMenu();
-        router.push('/add-fuel' as any);
+        router.push('/add-fuel');
       },
       color: '#f59e0b',
     },
