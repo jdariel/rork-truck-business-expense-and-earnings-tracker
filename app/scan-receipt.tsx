@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,15 +31,41 @@ type ReceiptData = z.infer<typeof ReceiptDataSchema>;
 export default function ScanReceiptScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { hasFeatureAccess } = useSubscription();
+  const { hasFeatureAccess, isLoading: subscriptionLoading } = useSubscription();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   const hasAccess = hasFeatureAccess('receiptScanner');
+
+  useEffect(() => {
+    console.log('ScanReceiptScreen mounted');
+    console.log('Permission status:', permission?.granted);
+    console.log('Has access:', hasAccess);
+    console.log('Subscription loading:', subscriptionLoading);
+    
+    return () => {
+      console.log('ScanReceiptScreen unmounted');
+    };
+  }, [hasAccess, permission?.granted, subscriptionLoading]);
+
+  useEffect(() => {
+    if (permission?.granted && hasAccess && !subscriptionLoading) {
+      setIsCameraReady(true);
+    }
+  }, [permission?.granted, hasAccess, subscriptionLoading]);
+
+  if (subscriptionLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   if (!hasAccess) {
     return (
@@ -110,7 +136,12 @@ export default function ScanReceiptScreen() {
   }
 
   const takePicture = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current) {
+      console.log('Camera ref is null');
+      return;
+    }
+
+    console.log('Taking picture...');
 
     try {
       setIsProcessing(true);
@@ -318,6 +349,14 @@ export default function ScanReceiptScreen() {
             <Text style={styles.permissionButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  if (!isCameraReady) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
