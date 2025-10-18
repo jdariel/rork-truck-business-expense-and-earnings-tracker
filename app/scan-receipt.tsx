@@ -38,9 +38,15 @@ export default function ScanReceiptScreen() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [hasAccess, setHasAccess] = useState<boolean>(false);
   const cameraRef = useRef<CameraView>(null);
 
-  const hasAccess = hasFeatureAccess('receiptScanner');
+  useEffect(() => {
+    if (!subscriptionLoading) {
+      const access = hasFeatureAccess('receiptScanner');
+      setHasAccess(access);
+    }
+  }, [subscriptionLoading, hasFeatureAccess]);
 
   useEffect(() => {
     console.log('ScanReceiptScreen mounted');
