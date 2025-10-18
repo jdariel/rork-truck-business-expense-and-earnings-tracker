@@ -38,15 +38,9 @@ export default function ScanReceiptScreen() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [hasAccess, setHasAccess] = useState<boolean>(false);
   const cameraRef = useRef<CameraView>(null);
 
-  useEffect(() => {
-    if (!subscriptionLoading) {
-      const access = hasFeatureAccess('receiptScanner');
-      setHasAccess(access);
-    }
-  }, [subscriptionLoading, hasFeatureAccess]);
+  const hasAccess = !subscriptionLoading && hasFeatureAccess('receiptScanner');
 
   useEffect(() => {
     console.log('ScanReceiptScreen mounted');
@@ -61,7 +55,12 @@ export default function ScanReceiptScreen() {
 
   useEffect(() => {
     if (permission?.granted && hasAccess && !subscriptionLoading) {
-      setIsCameraReady(true);
+      const timer = setTimeout(() => {
+        setIsCameraReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setIsCameraReady(false);
     }
   }, [permission?.granted, hasAccess, subscriptionLoading]);
 
