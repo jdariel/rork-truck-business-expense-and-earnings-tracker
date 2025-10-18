@@ -141,7 +141,7 @@ export default function ScanReceiptScreen() {
       console.log('TOOLKIT_URL:', process.env.EXPO_PUBLIC_TOOLKIT_URL);
 
       if (!process.env.EXPO_PUBLIC_TOOLKIT_URL) {
-        throw new Error('EXPO_PUBLIC_TOOLKIT_URL is not configured');
+        throw new Error('AI_SERVICE_NOT_CONFIGURED');
       }
 
       const data = await generateObject({
@@ -177,8 +177,8 @@ export default function ScanReceiptScreen() {
         
         if (error.message.includes('Network request failed')) {
           errorMessage = 'Network error. Please check your internet connection and try again.';
-        } else if (error.message.includes('TOOLKIT_URL')) {
-          errorMessage = 'AI service is not configured. Please contact support.';
+        } else if (error.message.includes('AI_SERVICE_NOT_CONFIGURED') || error.message.includes('TOOLKIT_URL')) {
+          errorMessage = 'AI service is not configured. This feature requires the Rork Toolkit SDK backend services to be enabled. Receipt scanning is currently unavailable in this environment.';
         }
       }
       
