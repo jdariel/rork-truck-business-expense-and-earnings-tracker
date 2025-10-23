@@ -23,7 +23,7 @@ const ReceiptDataSchema = z.object({
   merchant: z.string().describe('Name of the merchant/vendor'),
   amount: z.number().describe('Total amount paid'),
   date: z.string().describe('Date of purchase in YYYY-MM-DD format'),
-  category: z.enum(['fuel', 'maintenance', 'tolls', 'parking', 'food', 'lodging', 'other']).describe('Expense category'),
+  category: z.enum(['fuel', 'maintenance', 'insurance', 'permits', 'tolls', 'parking', 'food', 'lodging', 'repairs', 'tires', 'other']).describe('Expense category - choose the most appropriate category from: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, or other'),
   items: z.array(z.string()).describe('List of items purchased').optional(),
 });
 
@@ -180,7 +180,21 @@ export default function ScanReceiptScreen() {
       if (!process.env.EXPO_PUBLIC_TOOLKIT_URL) {
         console.log('AI service not configured, showing manual entry option');
         setIsProcessing(false);
-        showManualEntryOption();
+        Alert.alert(
+          'AI Service Not Configured',
+          'The receipt scanning AI service is not available. Please enter expense details manually.',
+          [
+            {
+              text: 'Enter Manually',
+              onPress: () => router.push('/add-expense'),
+            },
+            {
+              text: 'Retake Photo',
+              onPress: retakePhoto,
+              style: 'cancel',
+            },
+          ]
+        );
         return;
       }
 
@@ -194,7 +208,7 @@ export default function ScanReceiptScreen() {
             content: [
               {
                 type: 'text',
-                text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date, and categorize the expense type. If items are clearly visible, list them.',
+                text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date (in YYYY-MM-DD format), and categorize the expense. Categories: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other. If items are clearly visible, list them.',
               },
               {
                 type: 'image',
@@ -217,7 +231,22 @@ export default function ScanReceiptScreen() {
       }
       
       setIsProcessing(false);
-      showManualEntryOption();
+      
+      Alert.alert(
+        'Processing Failed',
+        'Unable to extract data from the receipt. Would you like to enter the details manually?',
+        [
+          {
+            text: 'Enter Manually',
+            onPress: () => router.push('/add-expense'),
+          },
+          {
+            text: 'Retake Photo',
+            onPress: retakePhoto,
+            style: 'cancel',
+          },
+        ]
+      );
     }
   };
 

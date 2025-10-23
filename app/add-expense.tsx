@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Alert, Image, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
-import { useState, useRef } from "react";
-import { router } from "expo-router";
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Alert, Image, KeyboardAvoidingView, Platform } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
 import { EXPENSE_CATEGORIES } from "@/constants/categories";
@@ -9,6 +9,14 @@ import { ExpenseCategory } from "@/types/business";
 import * as ImagePicker from 'expo-image-picker';
 
 export default function AddExpenseScreen() {
+  const params = useLocalSearchParams<{
+    prefilledAmount?: string;
+    prefilledDescription?: string;
+    prefilledCategory?: ExpenseCategory;
+    prefilledDate?: string;
+    prefilledNotes?: string;
+  }>();
+  
   const { addExpense } = useBusiness();
   const { theme } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -18,6 +26,14 @@ export default function AddExpenseScreen() {
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [receiptImage, setReceiptImage] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (params.prefilledAmount) setAmount(params.prefilledAmount);
+    if (params.prefilledDescription) setDescription(params.prefilledDescription);
+    if (params.prefilledCategory) setCategory(params.prefilledCategory);
+    if (params.prefilledDate) setDate(params.prefilledDate);
+    if (params.prefilledNotes) setNotes(params.prefilledNotes);
+  }, [params]);
 
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
