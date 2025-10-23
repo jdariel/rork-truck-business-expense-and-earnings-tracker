@@ -8,14 +8,15 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Camera, X, Check, Sparkles } from 'lucide-react-native';
+import { Camera, X, Check, Sparkles, ImageIcon } from 'lucide-react-native';
 import { useTheme } from '@/hooks/theme-store';
 import { useSubscription } from '@/hooks/subscription-store';
-import { generateObject } from '@rork/toolkit-sdk';
 import { z } from 'zod';
 
 const ReceiptDataSchema = z.object({
@@ -177,8 +178,13 @@ export default function ScanReceiptScreen() {
       console.log('TOOLKIT_URL:', process.env.EXPO_PUBLIC_TOOLKIT_URL);
 
       if (!process.env.EXPO_PUBLIC_TOOLKIT_URL) {
-        throw new Error('AI_SERVICE_NOT_CONFIGURED');
+        console.log('AI service not configured, showing manual entry option');
+        setIsProcessing(false);
+        showManualEntryOption();
+        return;
       }
+
+      const { generateObject } = await import('@rork/toolkit-sdk');
 
       const data = await generateObject({
         schema: ReceiptDataSchema,
@@ -205,22 +211,13 @@ export default function ScanReceiptScreen() {
     } catch (error) {
       console.error('Error processing receipt:', error);
       
-      let errorMessage = 'Failed to process receipt. Please try again.';
-      
       if (error instanceof Error) {
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
-        
-        if (error.message.includes('Network request failed')) {
-          errorMessage = 'Network error. Please check your internet connection and try again.';
-        } else if (error.message.includes('AI_SERVICE_NOT_CONFIGURED') || error.message.includes('TOOLKIT_URL')) {
-          errorMessage = 'AI service is not configured. This feature requires the Rork Toolkit SDK backend services to be enabled. Receipt scanning is currently unavailable in this environment.';
-        }
       }
       
-      Alert.alert('Error processing receipt', errorMessage);
       setIsProcessing(false);
-      setCapturedImage(null);
+      showManualEntryOption();
     }
   };
 
@@ -228,6 +225,52 @@ export default function ScanReceiptScreen() {
     setCapturedImage(null);
     setExtractedData(null);
     setIsProcessing(false);
+  };
+
+  const showManualEntryOption = () => {
+    Alert.alert(
+      'Receipt Captured',
+      'AI extraction is currently unavailable. Would you like to enter the expense details manually while viewing your receipt?',
+      [
+        {
+          text: 'Enter Manually',
+          onPress: () => {
+            router.push('/add-expense');
+          },
+        },
+        {
+          text: 'Retake Photo',
+          onPress: retakePhoto,
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const pickImageFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setCapturedImage(asset.uri);
+        setIsProcessing(true);
+        if (asset.base64) {
+          await processReceipt(asset.base64);
+        } else {
+          setIsProcessing(false);
+          showManualEntryOption();
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image from gallery');
+    }
   };
 
   const confirmAndAddExpense = () => {
@@ -245,10 +288,11 @@ export default function ScanReceiptScreen() {
     });
   };
 
-  if (capturedImage && extractedData) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ScrollView style={styles.resultsContainer}>
+  if (capturedImage) {
+    if (extractedData) {
+      return (
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+          <ScrollView style={styles.resultsContainer}>
           <View style={styles.resultsHeader}>
             <Sparkles size={32} color={theme.success} />
             <Text style={[styles.resultsTitle, { color: theme.text }]}>
@@ -333,6 +377,41 @@ export default function ScanReceiptScreen() {
           </View>
         </ScrollView>
       </View>
+      );
+    }
+
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}>
+          <TouchableOpacity
+            style={[styles.closeButton, { backgroundColor: theme.border }]}
+            onPress={() => router.back()}
+          >
+            <X size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView contentContainerStyle={styles.imagePreviewContainer}>
+          <Image
+            source={{ uri: capturedImage }}
+            style={styles.previewImage}
+            resizeMode="contain"
+          />
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewButton, { backgroundColor: theme.primary }]}
+              onPress={() => router.push('/add-expense')}
+            >
+              <Text style={styles.previewButtonText}>Enter Details Manually</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewButton, { backgroundColor: theme.border }]}
+              onPress={retakePhoto}
+            >
+              <Text style={[styles.previewButtonText, { color: theme.text }]}>Retake Photo</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
     );
   }
 
@@ -397,12 +476,21 @@ export default function ScanReceiptScreen() {
                 <Text style={styles.processingText}>Processing receipt...</Text>
               </View>
             ) : (
-              <TouchableOpacity
-                style={styles.captureButton}
-                onPress={takePicture}
-              >
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
+              <View style={styles.captureActions}>
+                <TouchableOpacity
+                  style={styles.galleryButton}
+                  onPress={pickImageFromGallery}
+                >
+                  <ImageIcon size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.captureButton}
+                  onPress={takePicture}
+                >
+                  <View style={styles.captureButtonInner} />
+                </TouchableOpacity>
+                <View style={styles.galleryButtonPlaceholder} />
+              </View>
             )}
           </View>
         </View>
@@ -601,5 +689,51 @@ const styles = StyleSheet.create({
   retakeButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  imagePreviewContainer: {
+    flex: 1,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: 400,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  previewActions: {
+    width: '100%',
+    gap: 12,
+  },
+  previewButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  previewButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  captureActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 40,
+  },
+  galleryButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galleryButtonPlaceholder: {
+    width: 56,
+    height: 56,
   },
 });
