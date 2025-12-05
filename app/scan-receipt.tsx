@@ -39,6 +39,7 @@ export default function ScanReceiptScreen() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const permissionRequestInFlight = useRef(false);
+  const scanMutation = trpc.receipt.scan.useMutation();
 
   const hasAccess = !subscriptionLoading && hasFeatureAccess('receiptScanner');
 
@@ -201,8 +202,6 @@ export default function ScanReceiptScreen() {
       setIsProcessing(false);
     }
   };
-
-  const scanMutation = trpc.receipt.scan.useMutation();
 
   const processReceipt = async (base64Image: string) => {
     try {
