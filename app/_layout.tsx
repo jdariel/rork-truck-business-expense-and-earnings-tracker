@@ -12,6 +12,7 @@ import { SubscriptionProvider } from "@/hooks/subscription-store";
 import { TruckProvider } from "@/hooks/truck-store";
 import { FuelProvider } from "@/hooks/fuel-store";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -198,25 +199,27 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <SubscriptionProvider>
-              <AuthProvider>
-                <TruckProvider>
-                  <FuelProvider>
-                    <BusinessProvider>
-                      <GestureHandlerRootView style={styles.gestureHandler}>
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </BusinessProvider>
-                  </FuelProvider>
-                </TruckProvider>
-              </AuthProvider>
-            </SubscriptionProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <ThemeProvider>
+              <SubscriptionProvider>
+                <AuthProvider>
+                  <TruckProvider>
+                    <FuelProvider>
+                      <BusinessProvider>
+                        <GestureHandlerRootView style={styles.gestureHandler}>
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </BusinessProvider>
+                    </FuelProvider>
+                  </TruckProvider>
+                </AuthProvider>
+              </SubscriptionProvider>
+            </ThemeProvider>
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
     </ErrorBoundary>
   );
 }
