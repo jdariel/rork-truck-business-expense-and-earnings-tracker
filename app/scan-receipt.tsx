@@ -9,33 +9,55 @@ import {
   Platform,
   ScrollView,
   Image,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Camera, X, Check, Sparkles, ImageIcon } from 'lucide-react-native';
+import { Camera, X, Sparkles, ImageIcon, ClipboardCheck, Edit3 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/theme-store';
 import { useSubscription } from '@/hooks/subscription-store';
+import { useBusiness } from '@/hooks/business-store';
+import { EXPENSE_CATEGORIES } from '@/constants/categories';
+import { ExpenseCategory } from '@/types/business';
 import { trpc } from '@/lib/trpc';
 
 type ReceiptData = {
   merchant: string;
   amount: number;
   date: string;
-  category: 'fuel' | 'maintenance' | 'insurance' | 'permits' | 'tolls' | 'parking' | 'food' | 'lodging' | 'repairs' | 'tires' | 'other';
+  category: ExpenseCategory;
   items?: string[];
+};
+
+type ExpenseDraft = {
+  merchant: string;
+  amount: string;
+  date: string;
+  category: ExpenseCategory;
+  notes: string;
+};
+
+const parseAmountValue = (value: string) => {
+  const sanitized = value.replace(/[^0-9.,]/g, '').replace(',', '.');
+  const parsed = Number.parseFloat(sanitized);
+  return Number.isNaN(parsed) ? 0 : parsed;
 };
 
 export default function ScanReceiptScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { addExpense } = useBusiness();
   const { hasFeatureAccess, isLoading: subscriptionLoading } = useSubscription();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
+  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const permissionRequestInFlight = useRef(false);
@@ -48,7 +70,7 @@ export default function ScanReceiptScreen() {
     console.log('Permission status:', permission?.granted);
     console.log('Has access:', hasAccess);
     console.log('Subscription loading:', subscriptionLoading);
-    
+
     return () => {
       console.log('ScanReceiptScreen unmounted');
     };
@@ -92,86 +114,28 @@ export default function ScanReceiptScreen() {
     }
   }, [permission?.granted]);
 
+  useEffect(() => {
+    if (extractedData) {
+      setExpenseDraft({
+        merchant: extractedData.merchant,
+        amount: extractedData.amount.toFixed(2),
+        date: extractedData.date,
+        category: extractedData.category,
+        notes: extractedData.items?.join(', ') ?? '',
+      });
+    } else {
+      setExpenseDraft(null);
+    }
+  }, [extractedData]);
+
   const handleCameraReady = useCallback(() => {
     console.log('Camera is ready');
     setIsCameraReady(true);
   }, []);
 
-  if (subscriptionLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
-
-  if (!hasAccess) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.permissionContainer}>
-          <Sparkles size={64} color={theme.primary} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>
-            Premium Feature
-          </Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
-            Receipt scanning with AI is a premium feature. Upgrade to Rork Pro to automatically extract expense data from receipts.
-          </Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push('/upgrade')}
-          >
-            <Text style={styles.permissionButtonText}>Upgrade to Pro</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>
-              Go Back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (!permission) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.permissionContainer}>
-          <Camera size={64} color={theme.text} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>
-            Camera Permission Required
-          </Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
-            We need access to your camera to scan receipts and extract expense data automatically.
-          </Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
-            onPress={requestPermission}
-          >
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>
-              Cancel
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
+  const handleDraftChange = useCallback(<K extends keyof ExpenseDraft>(key: K, value: ExpenseDraft[K]) => {
+    setExpenseDraft(prev => (prev ? { ...prev, [key]: value } : prev));
+  }, []);
 
   const takePicture = async () => {
     if (!cameraRef.current) {
@@ -215,7 +179,7 @@ export default function ScanReceiptScreen() {
     } catch (error) {
       console.error('Error processing receipt:', error);
       setIsProcessing(false);
-      
+
       Alert.alert(
         'Processing Failed',
         'Unable to extract data from the receipt. Would you like to enter the details manually?',
@@ -237,6 +201,7 @@ export default function ScanReceiptScreen() {
   const retakePhoto = () => {
     setCapturedImage(null);
     setExtractedData(null);
+    setExpenseDraft(null);
     setIsProcessing(false);
   };
 
@@ -286,116 +251,333 @@ export default function ScanReceiptScreen() {
     }
   };
 
-  const confirmAndAddExpense = () => {
-    if (!extractedData) return;
+  const openManualEditor = () => {
+    if (!expenseDraft) {
+      return;
+    }
 
     router.push({
       pathname: '/add-expense',
       params: {
-        prefilledAmount: extractedData.amount.toString(),
-        prefilledDescription: extractedData.merchant,
-        prefilledCategory: extractedData.category,
-        prefilledDate: extractedData.date,
-        prefilledNotes: extractedData.items?.join(', ') || '',
+        prefilledAmount: expenseDraft.amount,
+        prefilledDescription: expenseDraft.merchant,
+        prefilledCategory: expenseDraft.category,
+        prefilledDate: expenseDraft.date,
+        prefilledNotes: expenseDraft.notes,
       },
     });
   };
 
+  const handleSaveExpense = async () => {
+    if (!expenseDraft) {
+      return;
+    }
+
+    const parsedAmount = parseAmountValue(expenseDraft.amount);
+    if (!expenseDraft.merchant.trim() || parsedAmount <= 0) {
+      Alert.alert('Missing Information', 'Please confirm the merchant name and amount before saving.');
+      return;
+    }
+
+    const normalizedDate = expenseDraft.date?.trim() || new Date().toISOString().split('T')[0];
+
+    setIsSavingExpense(true);
+    console.log('Saving expense from receipt:', expenseDraft);
+    try {
+      await addExpense({
+        date: normalizedDate,
+        category: expenseDraft.category,
+        amount: parsedAmount,
+        description: expenseDraft.merchant.trim(),
+        notes: expenseDraft.notes.trim() ? expenseDraft.notes.trim() : undefined,
+        receiptImage: capturedImage ?? undefined,
+      });
+
+      retakePhoto();
+
+      Alert.alert(
+        'Expense Saved',
+        'The scanned receipt has been added to your expenses.',
+        [
+          {
+            text: 'View Reports',
+            onPress: () => router.replace('/(tabs)/reports'),
+          },
+          {
+            text: 'Close',
+            onPress: () => router.back(),
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to save expense from receipt:', error);
+      Alert.alert('Save Failed', 'We could not save this expense. Please try again or edit manually.');
+    } finally {
+      setIsSavingExpense(false);
+    }
+  };
+
+  if (subscriptionLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={styles.permissionContainer}>
+          <Sparkles size={64} color={theme.primary} style={styles.permissionIcon} />
+          <Text style={[styles.permissionTitle, { color: theme.text }]}>Premium Feature</Text>
+          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>Receipt scanning with AI is a premium feature. Upgrade to Rork Pro to automatically extract expense data from receipts.</Text>
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push('/upgrade')}
+          >
+            <Text style={styles.permissionButtonText}>Upgrade to Pro</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (!permission) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={styles.permissionContainer}>
+          <Camera size={64} color={theme.text} style={styles.permissionIcon} />
+          <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Permission Required</Text>
+          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>We need access to your camera to scan receipts and extract expense data automatically.</Text>
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   if (capturedImage) {
-    if (extractedData) {
+    if (extractedData && expenseDraft) {
       return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-          <ScrollView style={styles.resultsContainer}>
-          <View style={styles.resultsHeader}>
-            <Sparkles size={32} color={theme.success} />
-            <Text style={[styles.resultsTitle, { color: theme.text }]}>
-              Receipt Scanned!
-            </Text>
-            <Text style={[styles.resultsSubtitle, { color: theme.textSecondary }]}>
-              Review the extracted information below
-            </Text>
+        <View style={[styles.container, { backgroundColor: theme.background }]}> 
+          <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}> 
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: theme.border }]}
+              onPress={() => router.back()}
+            >
+              <X size={24} color={theme.text} />
+            </TouchableOpacity>
           </View>
+          <ScrollView
+            style={styles.resultsContainer}
+            contentContainerStyle={styles.resultsContent}
+            testID="receipt-results-scroll"
+          >
+            <LinearGradient
+              colors={[theme.primary, theme.primaryDark]}
+              style={styles.resultsHero}
+            >
+              <Sparkles size={32} color="#fff" />
+              <Text style={styles.heroTitle}>Receipt scanned</Text>
+              <Text style={styles.heroSubtitle}>Refine the AI data below or save instantly</Text>
+            </LinearGradient>
 
-          <View style={styles.dataCard}>
-            <View style={styles.dataRow}>
-              <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>
-                Merchant
-              </Text>
-              <Text style={[styles.dataValue, { color: theme.text }]}>
-                {extractedData.merchant}
-              </Text>
+            <View style={[styles.receiptCard, { backgroundColor: theme.card }]}> 
+              <Image
+                source={{ uri: capturedImage }}
+                style={styles.receiptImage}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.retakeLink}
+                onPress={retakePhoto}
+                testID="retake-photo-button"
+              >
+                <Text style={styles.retakeLinkText}>Retake photo</Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.dataRow}>
-              <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>
-                Amount
-              </Text>
-              <Text style={[styles.dataValue, { color: theme.success }]}>
-                ${extractedData.amount.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>
-                Date
-              </Text>
-              <Text style={[styles.dataValue, { color: theme.text }]}>
-                {new Date(extractedData.date).toLocaleDateString()}
-              </Text>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>
-                Category
-              </Text>
-              <Text style={[styles.dataValue, { color: theme.text }]}>
-                {extractedData.category.charAt(0).toUpperCase() + extractedData.category.slice(1)}
-              </Text>
-            </View>
-
-            {extractedData.items && extractedData.items.length > 0 && (
+            <View style={[styles.dataCard, { backgroundColor: theme.surface }]}> 
               <View style={styles.dataRow}>
-                <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>
-                  Items
+                <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Merchant</Text>
+                <Text style={[styles.dataValue, { color: theme.text }]}>{extractedData.merchant}</Text>
+              </View>
+              <View style={styles.dataRow}>
+                <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Amount</Text>
+                <Text style={[styles.dataValue, { color: theme.success }]}>${extractedData.amount.toFixed(2)}</Text>
+              </View>
+              <View style={styles.dataRow}>
+                <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Date</Text>
+                <Text style={[styles.dataValue, { color: theme.text }]}>{new Date(extractedData.date).toLocaleDateString()}</Text>
+              </View>
+              <View style={styles.dataRow}>
+                <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Category</Text>
+                <Text style={[styles.dataValue, { color: theme.text }]}>
+                  {extractedData.category.charAt(0).toUpperCase() + extractedData.category.slice(1)}
                 </Text>
-                <View style={styles.itemsList}>
-                  {extractedData.items.map((item, index) => (
-                    <Text key={index} style={[styles.itemText, { color: theme.text }]}>
-                      • {item}
-                    </Text>
-                  ))}
+              </View>
+              {extractedData.items && extractedData.items.length > 0 && (
+                <View style={styles.dataRow}>
+                  <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Items</Text>
+                  <View style={styles.itemsList}>
+                    {extractedData.items.map((item, index) => (
+                      <Text key={index} style={[styles.itemText, { color: theme.text }]}>
+                        • {item}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.editCard, { backgroundColor: theme.surface }]}> 
+              <Text style={[styles.editTitle, { color: theme.text }]}>Fine tune before saving</Text>
+
+              <View style={styles.editField}>
+                <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Merchant / Description</Text>
+                <TextInput
+                  value={expenseDraft.merchant}
+                  onChangeText={text => handleDraftChange('merchant', text)}
+                  style={[styles.textField, { borderColor: theme.border, color: theme.text, backgroundColor: theme.card }]}
+                  placeholder="Merchant name"
+                  placeholderTextColor={theme.textSecondary}
+                  testID="receipt-merchant-input"
+                />
+              </View>
+
+              <View style={styles.editRow}>
+                <View style={styles.editFieldHalf}>
+                  <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Amount</Text>
+                  <TextInput
+                    value={expenseDraft.amount}
+                    onChangeText={text => handleDraftChange('amount', text)}
+                    style={[styles.textField, { borderColor: theme.border, color: theme.text, backgroundColor: theme.card }]}
+                    placeholder="0.00"
+                    keyboardType="decimal-pad"
+                    placeholderTextColor={theme.textSecondary}
+                    testID="receipt-amount-input"
+                  />
+                </View>
+                <View style={styles.editFieldHalf}>
+                  <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Date</Text>
+                  <TextInput
+                    value={expenseDraft.date}
+                    onChangeText={text => handleDraftChange('date', text)}
+                    style={[styles.textField, { borderColor: theme.border, color: theme.text, backgroundColor: theme.card }]}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={theme.textSecondary}
+                    testID="receipt-date-input"
+                  />
                 </View>
               </View>
-            )}
-          </View>
 
-          <View style={styles.actionsContainer}>
+              <Text style={[styles.editLabel, styles.chipLabel, { color: theme.textSecondary }]}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}> 
+                {EXPENSE_CATEGORIES.map(categoryOption => (
+                  <TouchableOpacity
+                    key={categoryOption.value}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor:
+                          expenseDraft.category === categoryOption.value ? theme.primary : 'transparent',
+                        borderColor:
+                          expenseDraft.category === categoryOption.value ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => handleDraftChange('category', categoryOption.value as ExpenseCategory)}
+                    testID={`receipt-category-${categoryOption.value}`}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        {
+                          color:
+                            expenseDraft.category === categoryOption.value ? '#fff' : theme.textSecondary,
+                        },
+                      ]}
+                    >
+                      {categoryOption.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.editField}>
+                <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Notes</Text>
+                <TextInput
+                  value={expenseDraft.notes}
+                  onChangeText={text => handleDraftChange('notes', text)}
+                  style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.card }]}
+                  placeholder="Line items, context, etc."
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                  testID="receipt-notes-input"
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={[styles.actionsContainer, { backgroundColor: theme.background }]}>
             <TouchableOpacity
               style={[styles.confirmButton, { backgroundColor: theme.success }]}
-              onPress={confirmAndAddExpense}
+              onPress={handleSaveExpense}
+              disabled={isSavingExpense}
+              testID="save-expense-button"
             >
-              <Check size={20} color="#fff" />
-              <Text style={styles.confirmButtonText}>Add Expense</Text>
+              {isSavingExpense ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ClipboardCheck size={20} color="#fff" />
+              )}
+              <Text style={styles.confirmButtonText}>
+                {isSavingExpense ? 'Saving...' : 'Save to Expenses'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.retakeButton, { borderColor: theme.border }]}
-              onPress={retakePhoto}
+              onPress={openManualEditor}
+              testID="edit-manually-button"
             >
-              <Camera size={20} color={theme.textSecondary} />
-              <Text style={[styles.retakeButtonText, { color: theme.textSecondary }]}>
-                Retake Photo
-              </Text>
+              <Edit3 size={20} color={theme.textSecondary} />
+              <Text style={[styles.retakeButtonText, { color: theme.textSecondary }]}>Open full editor</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </View>
+        </View>
       );
     }
 
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}> 
           <TouchableOpacity
             style={[styles.closeButton, { backgroundColor: theme.border }]}
             onPress={() => router.back()}
@@ -430,15 +612,11 @@ export default function ScanReceiptScreen() {
 
   if (Platform.OS === 'web') {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}> 
         <View style={styles.permissionContainer}>
           <Camera size={64} color={theme.text} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>
-            Camera Not Available
-          </Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
-            Receipt scanning is not available on web. Please use the mobile app to scan receipts.
-          </Text>
+          <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Not Available</Text>
+          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>Receipt scanning is not available on web. Please use the mobile app to scan receipts.</Text>
           <TouchableOpacity
             style={[styles.permissionButton, { backgroundColor: theme.primary }]}
             onPress={() => router.back()}
@@ -451,7 +629,7 @@ export default function ScanReceiptScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]} testID="scan-receipt-screen">
+    <View style={[styles.container, { backgroundColor: theme.background }]} testID="scan-receipt-screen"> 
       <CameraView
         ref={cameraRef}
         style={styles.camera}
@@ -476,9 +654,7 @@ export default function ScanReceiptScreen() {
 
           <View style={styles.guideContainer}>
             <View style={styles.guideBorder} />
-            <Text style={styles.guideText}>
-              Position receipt within the frame
-            </Text>
+            <Text style={styles.guideText}>Position receipt within the frame</Text>
           </View>
 
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 40 }]}>
@@ -635,34 +811,57 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     flex: 1,
+  },
+  resultsContent: {
     padding: 20,
+    paddingBottom: 140,
   },
-  resultsHeader: {
-    alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 20,
-  },
-  resultsTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  resultsSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  dataCard: {
-    backgroundColor: 'rgba(30, 64, 175, 0.05)',
+  resultsHero: {
     borderRadius: 16,
     padding: 20,
-    marginBottom: 24,
+    gap: 8,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  receiptCard: {
+    marginTop: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  receiptImage: {
+    width: '100%',
+    height: 220,
+  },
+  retakeLink: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  retakeLinkText: {
+    color: '#1e40af',
+    fontWeight: '600',
+  },
+  dataCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 20,
   },
   dataRow: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   dataLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
     textTransform: 'uppercase',
@@ -679,9 +878,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  editCard: {
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+  },
+  editTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  editField: {
+    gap: 8,
+  },
+  editFieldHalf: {
+    flex: 1,
+    gap: 8,
+  },
+  editRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  editLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+  },
+  textField: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+  },
+  textArea: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    fontSize: 15,
+  },
+  chipLabel: {
+    marginTop: 4,
+  },
+  chipRow: {
+    gap: 10,
+    marginVertical: 8,
+  },
+  categoryChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   actionsContainer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
     gap: 12,
-    marginBottom: 40,
   },
   confirmButton: {
     flexDirection: 'row',
