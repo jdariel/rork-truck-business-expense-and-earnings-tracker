@@ -198,7 +198,7 @@ export default function ScanReceiptScreen() {
         return;
       }
 
-      const { generateObject } = await import('@rork/toolkit-sdk');
+      const { generateObject } = await import('@rork-ai/toolkit-sdk');
 
       const data = await generateObject({
         schema: ReceiptDataSchema,

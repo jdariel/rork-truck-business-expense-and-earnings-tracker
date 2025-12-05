@@ -1,7 +1,7 @@
 import { Trip, Expense } from '@/types/business';
 import { FuelEntry } from '@/types/fuel';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 export type ExportFormat = 'csv' | 'json';
