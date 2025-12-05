@@ -6,18 +6,42 @@ import { createContext } from "./trpc/create-context";
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use("*", cors({
+  origin: '*',
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['POST', 'GET', 'OPTIONS'],
+}));
+
+app.onError((err, c) => {
+  console.error('[Hono Error]', err);
+  return c.json(
+    {
+      error: {
+        message: err.message || 'Internal server error',
+        code: 'INTERNAL_SERVER_ERROR',
+      },
+    },
+    500
+  );
+});
 
 app.use(
   "/api/trpc/*",
   trpcServer({
     router: appRouter,
     createContext,
+    onError({ error, path }) {
+      console.error(`[tRPC Error] ${path}:`, error);
+    },
   })
 );
 
 app.get("/", (c) => {
   return c.json({ status: "ok", message: "API is running" });
+});
+
+app.get("/api", (c) => {
+  return c.json({ status: "ok", message: "API endpoint is running" });
 });
 
 export default app;
