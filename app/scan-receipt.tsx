@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ export default function ScanReceiptScreen() {
   const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const permissionRequestInFlight = useRef(false);
 
   const hasAccess = !subscriptionLoading && hasFeatureAccess('receiptScanner');
 
@@ -53,15 +54,47 @@ export default function ScanReceiptScreen() {
   }, [hasAccess, permission?.granted, subscriptionLoading]);
 
   useEffect(() => {
-    if (permission?.granted && hasAccess && !subscriptionLoading) {
-      const timer = setTimeout(() => {
-        setIsCameraReady(true);
-      }, 100);
-      return () => clearTimeout(timer);
-    } else {
+    if (!requestPermission) {
+      return;
+    }
+
+    if (permission?.status === 'granted' || permission?.status === 'denied') {
+      return;
+    }
+
+    if (permissionRequestInFlight.current) {
+      return;
+    }
+
+    permissionRequestInFlight.current = true;
+    console.log('Requesting camera permission...');
+
+    requestPermission()
+      .then(result => {
+        console.log('Camera permission response:', result?.granted);
+      })
+      .catch(error => {
+        console.error('Failed to request camera permission:', error);
+        Alert.alert(
+          'Camera Permission Error',
+          'Unable to access the camera. Please enable permissions in your system settings.'
+        );
+      })
+      .finally(() => {
+        permissionRequestInFlight.current = false;
+      });
+  }, [permission, requestPermission]);
+
+  useEffect(() => {
+    if (permission?.granted) {
       setIsCameraReady(false);
     }
-  }, [permission?.granted, hasAccess, subscriptionLoading]);
+  }, [permission?.granted]);
+
+  const handleCameraReady = useCallback(() => {
+    console.log('Camera is ready');
+    setIsCameraReady(true);
+  }, []);
 
   if (subscriptionLoading) {
     return (
@@ -418,21 +451,20 @@ export default function ScanReceiptScreen() {
     );
   }
 
-  if (!isCameraReady) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]} testID="scan-receipt-screen">
       <CameraView
         ref={cameraRef}
         style={styles.camera}
         facing={'back' as CameraType}
+        onCameraReady={handleCameraReady}
       >
+        {!isCameraReady && (
+          <View style={styles.cameraLoadingOverlay} testID="camera-loading-overlay">
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={styles.processingText}>Initializing camera...</Text>
+          </View>
+        )}
         <View style={styles.overlay}>
           <View style={[styles.topBar, { paddingTop: insets.top + 20 }]}>
             <TouchableOpacity
@@ -461,12 +493,14 @@ export default function ScanReceiptScreen() {
                 <TouchableOpacity
                   style={styles.galleryButton}
                   onPress={pickImageFromGallery}
+                  testID="open-gallery-button"
                 >
                   <ImageIcon size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.captureButton}
                   onPress={takePicture}
+                  testID="capture-receipt-button"
                 >
                   <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
@@ -490,6 +524,13 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  cameraLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   topBar: {
     padding: 20,
