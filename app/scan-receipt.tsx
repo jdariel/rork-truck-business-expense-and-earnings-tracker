@@ -17,17 +17,15 @@ import { useRouter } from 'expo-router';
 import { Camera, X, Check, Sparkles, ImageIcon } from 'lucide-react-native';
 import { useTheme } from '@/hooks/theme-store';
 import { useSubscription } from '@/hooks/subscription-store';
-import { z } from 'zod';
+import { trpc } from '@/lib/trpc';
 
-const ReceiptDataSchema = z.object({
-  merchant: z.string().describe('Name of the merchant/vendor'),
-  amount: z.number().describe('Total amount paid'),
-  date: z.string().describe('Date of purchase in YYYY-MM-DD format'),
-  category: z.enum(['fuel', 'maintenance', 'insurance', 'permits', 'tolls', 'parking', 'food', 'lodging', 'repairs', 'tires', 'other']).describe('Expense category - choose the most appropriate category from: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, or other'),
-  items: z.array(z.string()).describe('List of items purchased').optional(),
-});
-
-type ReceiptData = z.infer<typeof ReceiptDataSchema>;
+type ReceiptData = {
+  merchant: string;
+  amount: number;
+  date: string;
+  category: 'fuel' | 'maintenance' | 'insurance' | 'permits' | 'tolls' | 'parking' | 'food' | 'lodging' | 'repairs' | 'tires' | 'other';
+  items?: string[];
+};
 
 export default function ScanReceiptScreen() {
   const router = useRouter();
@@ -171,65 +169,42 @@ export default function ScanReceiptScreen() {
     }
   };
 
+  const scanMutation = trpc.receipt.scan.useMutation({
+    onSuccess: (data) => {
+      console.log('Receipt processed successfully:', data);
+      setExtractedData(data);
+      setIsProcessing(false);
+    },
+    onError: (error) => {
+      console.error('Error processing receipt:', error);
+      setIsProcessing(false);
+      
+      Alert.alert(
+        'Processing Failed',
+        'Unable to extract data from the receipt. Would you like to enter the details manually?',
+        [
+          {
+            text: 'Enter Manually',
+            onPress: () => router.push('/add-expense'),
+          },
+          {
+            text: 'Retake Photo',
+            onPress: retakePhoto,
+            style: 'cancel',
+          },
+        ]
+      );
+    },
+  });
+
   const processReceipt = async (base64Image: string) => {
     try {
       console.log('Processing receipt with AI...');
       console.log('Base64 image length:', base64Image.length);
-      console.log('TOOLKIT_URL:', process.env.EXPO_PUBLIC_TOOLKIT_URL);
 
-      if (!process.env.EXPO_PUBLIC_TOOLKIT_URL) {
-        console.log('AI service not configured, showing manual entry option');
-        setIsProcessing(false);
-        Alert.alert(
-          'AI Service Not Configured',
-          'The receipt scanning AI service is not available. Please enter expense details manually.',
-          [
-            {
-              text: 'Enter Manually',
-              onPress: () => router.push('/add-expense'),
-            },
-            {
-              text: 'Retake Photo',
-              onPress: retakePhoto,
-              style: 'cancel',
-            },
-          ]
-        );
-        return;
-      }
-
-      const { generateObject } = await import('@rork-ai/toolkit-sdk');
-
-      const data = await generateObject({
-        schema: ReceiptDataSchema,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date (in YYYY-MM-DD format), and categorize the expense. Categories: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other. If items are clearly visible, list them.',
-              },
-              {
-                type: 'image',
-                image: `data:image/jpeg;base64,${base64Image}`,
-              },
-            ],
-          },
-        ],
-      });
-
-      console.log('Receipt processed successfully:', data);
-      setExtractedData(data);
-      setIsProcessing(false);
+      scanMutation.mutate({ base64Image });
     } catch (error) {
       console.error('Error processing receipt:', error);
-      
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      
       setIsProcessing(false);
       
       Alert.alert(
