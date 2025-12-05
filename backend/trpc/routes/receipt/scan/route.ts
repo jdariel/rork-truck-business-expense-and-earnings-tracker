@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { publicProcedure } from "@/backend/trpc/create-context";
+import { openai } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
 
 const ReceiptDataSchema = z.object({
   merchant: z.string().describe('Name of the merchant/vendor'),
@@ -17,58 +19,41 @@ export default publicProcedure
     console.log('[Receipt Scan] Started - Image length:', input.base64Image.length);
     
     try {
-      let generateObject;
-      try {
-        const toolkit = await import('@rork-ai/toolkit-sdk');
-        generateObject = toolkit.generateObject;
-        console.log('[Receipt Scan] AI toolkit imported successfully');
-      } catch (importError) {
-        console.error('[Receipt Scan] AI toolkit import failed:', importError);
-        throw new Error('AI toolkit is not configured. Please set up @rork-ai/toolkit-sdk or contact support.');
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('[Receipt Scan] OPENAI_API_KEY not configured');
+        throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.');
       }
 
-      if (!generateObject) {
-        console.error('[Receipt Scan] generateObject is undefined');
-        throw new Error('AI toolkit generateObject function is not available');
-      }
-
-      console.log('[Receipt Scan] Calling generateObject with schema...');
-      let result;
-      try {
-        result = await generateObject({
-          schema: ReceiptDataSchema,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date (in YYYY-MM-DD format), and categorize the expense. Categories: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other. If items are clearly visible, list them.',
-                },
-                {
-                  type: 'image',
-                  image: `data:image/jpeg;base64,${input.base64Image}`,
-                },
-              ],
-            },
-          ],
-        });
-      } catch (aiError) {
-        console.error('[Receipt Scan] generateObject error:', aiError);
-        if (aiError && typeof aiError === 'object' && 'message' in aiError) {
-          throw new Error(`AI service error: ${(aiError as Error).message}`);
-        }
-        throw new Error('AI service encountered an error processing the receipt');
-      }
-
-      console.log('[Receipt Scan] AI response received:', JSON.stringify(result, null, 2));
+      console.log('[Receipt Scan] Calling OpenAI Vision API...');
       
-      if (!result || typeof result !== 'object') {
+      const result = await generateObject({
+        model: openai('gpt-4o-mini'),
+        schema: ReceiptDataSchema,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date (in YYYY-MM-DD format), and categorize the expense. Categories: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other. If items are clearly visible, list them. Be as accurate as possible.',
+              },
+              {
+                type: 'image',
+                image: `data:image/jpeg;base64,${input.base64Image}`,
+              },
+            ],
+          },
+        ],
+      });
+
+      console.log('[Receipt Scan] AI response received:', JSON.stringify(result.object, null, 2));
+      
+      if (!result.object || typeof result.object !== 'object') {
         console.error('[Receipt Scan] Invalid result from AI:', result);
         throw new Error('Invalid response from AI service');
       }
 
-      return result;
+      return result.object;
     } catch (error) {
       console.error('[Receipt Scan] Error:', error);
       console.error('[Receipt Scan] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
