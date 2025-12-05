@@ -169,40 +169,17 @@ export default function ScanReceiptScreen() {
     }
   };
 
-  const scanMutation = trpc.receipt.scan.useMutation({
-    onSuccess: (data) => {
-      console.log('Receipt processed successfully:', data);
-      setExtractedData(data);
-      setIsProcessing(false);
-    },
-    onError: (error) => {
-      console.error('Error processing receipt:', error);
-      setIsProcessing(false);
-      
-      Alert.alert(
-        'Processing Failed',
-        'Unable to extract data from the receipt. Would you like to enter the details manually?',
-        [
-          {
-            text: 'Enter Manually',
-            onPress: () => router.push('/add-expense'),
-          },
-          {
-            text: 'Retake Photo',
-            onPress: retakePhoto,
-            style: 'cancel',
-          },
-        ]
-      );
-    },
-  });
+  const scanMutation = trpc.receipt.scan.useMutation();
 
   const processReceipt = async (base64Image: string) => {
     try {
       console.log('Processing receipt with AI...');
       console.log('Base64 image length:', base64Image.length);
 
-      scanMutation.mutate({ base64Image });
+      const result = await scanMutation.mutateAsync({ base64Image });
+      console.log('Receipt processed successfully:', result);
+      setExtractedData(result);
+      setIsProcessing(false);
     } catch (error) {
       console.error('Error processing receipt:', error);
       setIsProcessing(false);
