@@ -17,7 +17,14 @@ export default publicProcedure
     console.log('Receipt scan requested, image length:', input.base64Image.length);
     
     try {
-      const { generateObject } = await import('@rork-ai/toolkit-sdk');
+      let generateObject;
+      try {
+        const toolkit = await import('@rork-ai/toolkit-sdk');
+        generateObject = toolkit.generateObject;
+      } catch (importError) {
+        console.error('AI toolkit not available:', importError);
+        throw new Error('AI toolkit is not configured. Please set up @rork-ai/toolkit-sdk or contact support.');
+      }
 
       const data = await generateObject({
         schema: ReceiptDataSchema,
