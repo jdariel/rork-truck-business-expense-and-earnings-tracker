@@ -228,14 +228,36 @@ export default function ScanReceiptScreen() {
       console.error('[ScanReceipt] Full error:', JSON.stringify(error, null, 2));
       setProcessing(false);
 
+      let errorTitle = 'Processing Failed';
       let errorMessage = 'Unable to extract data from the receipt.';
-      if (error?.message) {
+      
+      if (error?.message?.includes('Backend not configured')) {
+        errorTitle = 'Backend Not Configured';
+        errorMessage = 'The backend server is not set up. Receipt scanning requires a backend service to process images with AI.\n\nPlease contact support or check your configuration.';
+        
+        Alert.alert(errorTitle, errorMessage, [
+          {
+            text: 'Enter Manually',
+            onPress: () => router.push('/add-expense'),
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+          },
+        ]);
+        return;
+      }
+      
+      if (error?.message?.includes('404') || error?.cause?.message?.includes('404')) {
+        errorTitle = 'Backend Not Available';
+        errorMessage = 'The backend server could not be reached (404 Not Found).\n\nThis usually means the backend is not deployed yet. Please check your backend deployment status.';
+      } else if (error?.message) {
         errorMessage += `\n\nError: ${error.message}`;
       }
 
       Alert.alert(
-        'Processing Failed',
-        errorMessage + ' Would you like to enter the details manually?',
+        errorTitle,
+        errorMessage + '\n\nWould you like to enter the details manually?',
         [
           {
             text: 'Enter Manually',
