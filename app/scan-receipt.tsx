@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useRouter } from 'expo-router';
 import { Camera, X, Sparkles, ImageIcon, ClipboardCheck, Edit3 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -141,6 +142,30 @@ export default function ScanReceiptScreen() {
   }, []);
 
   //--------------------------------------------------------------------
+  // Compress Image
+  //--------------------------------------------------------------------
+  const compressImage = async (uri: string): Promise<{ uri: string; base64: string }> => {
+    console.log('[ScanReceipt] Compressing image...');
+    
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+
+    if (!manipResult.base64) {
+      throw new Error('Failed to generate base64 from compressed image');
+    }
+
+    console.log('[ScanReceipt] Compressed - Original URI length:', uri.length, '| Base64 length:', manipResult.base64.length);
+    
+    return {
+      uri: manipResult.uri,
+      base64: manipResult.base64,
+    };
+  };
+
+  //--------------------------------------------------------------------
   // Take Picture
   //--------------------------------------------------------------------
   const takePicture = async () => {
@@ -154,8 +179,8 @@ export default function ScanReceiptScreen() {
     try {
       setProcessing(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.5,
-        base64: true,
+        quality: 0.7,
+        base64: false,
       });
 
       if (!photo) {
@@ -164,8 +189,9 @@ export default function ScanReceiptScreen() {
         return;
       }
 
-      setImageUri(photo.uri);
-      await processReceipt(photo.base64!);
+      const compressed = await compressImage(photo.uri);
+      setImageUri(compressed.uri);
+      await processReceipt(compressed.base64);
     } catch (error) {
       console.error('[ScanReceipt] Error taking picture:', error);
       Alert.alert('Error', 'Failed to capture image. Please try again.');
@@ -242,24 +268,22 @@ export default function ScanReceiptScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.5,
-        base64: true,
+        quality: 0.7,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setImageUri(asset.uri);
+        setProcessing(true);
         
-        if (asset.base64) {
-          setProcessing(true);
-          await processReceipt(asset.base64);
-        } else {
-          Alert.alert('Error', 'Failed to read image data');
-        }
+        const compressed = await compressImage(asset.uri);
+        setImageUri(compressed.uri);
+        await processReceipt(compressed.base64);
       }
     } catch (error) {
       console.error('[ScanReceipt] Gallery error:', error);
       Alert.alert('Error', 'Failed to pick image from gallery');
+      setProcessing(false);
     }
   };
 
