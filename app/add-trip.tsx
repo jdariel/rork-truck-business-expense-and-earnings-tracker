@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { router } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
-import { Check, Calendar } from "lucide-react-native";
+import { Check } from "lucide-react-native";
+import DatePicker from "@/components/DatePicker";
 
 export default function AddTripScreen() {
   const { addTrip, routes, getRouteByName } = useBusiness();
@@ -78,17 +79,11 @@ export default function AddTripScreen() {
       >
       <View style={styles.form}>
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: theme.text }]}>Date *</Text>
-          <View style={[styles.dateInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Calendar size={20} color={theme.textSecondary} />
-            <TextInput
-              style={[styles.dateText, { color: theme.text }]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={theme.textSecondary}
-            />
-          </View>
+          <DatePicker
+            label="Date *"
+            value={date}
+            onChange={setDate}
+          />
         </View>
 
         <View style={styles.inputGroup}>

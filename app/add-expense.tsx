@@ -4,9 +4,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useBusiness } from "@/hooks/business-store";
 import { useTheme } from "@/hooks/theme-store";
 import { EXPENSE_CATEGORIES } from "@/constants/categories";
-import { Check, Calendar, Camera, X } from "lucide-react-native";
+import { Check, Camera, X } from "lucide-react-native";
 import { ExpenseCategory } from "@/types/business";
 import * as ImagePicker from 'expo-image-picker';
+import DatePicker from "@/components/DatePicker";
 
 export default function AddExpenseScreen() {
   const params = useLocalSearchParams<{
@@ -115,17 +116,11 @@ export default function AddExpenseScreen() {
       >
       <View style={styles.form}>
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: theme.text }]}>Date *</Text>
-          <View style={[styles.dateInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Calendar size={20} color={theme.textSecondary} />
-            <TextInput
-              style={[styles.dateText, { color: theme.text }]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={theme.textSecondary}
-            />
-          </View>
+          <DatePicker
+            label="Date *"
+            value={date}
+            onChange={setDate}
+          />
         </View>
 
         <View style={styles.inputGroup}>
