@@ -248,9 +248,22 @@ export default function ScanReceiptScreen() {
         return;
       }
       
-      if (error?.message?.includes('404') || error?.cause?.message?.includes('404')) {
-        errorTitle = 'Backend Not Available';
-        errorMessage = 'The backend server could not be reached (404 Not Found).\n\nThis usually means the backend is not deployed yet. Please check your backend deployment status.';
+      if (error?.message?.includes('404') || error?.cause?.message?.includes('404') || error?.message?.includes('Not Found')) {
+        errorTitle = 'Backend Not Deployed';
+        errorMessage = 'The receipt scanning backend service is not deployed yet.\n\nThe backend code is ready in your project, but needs to be deployed to work. Please contact support or check your deployment status.\n\nIn the meantime, you can enter expenses manually.';
+        
+        Alert.alert(errorTitle, errorMessage, [
+          {
+            text: 'Enter Manually',
+            onPress: () => router.push('/add-expense'),
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+            onPress: () => router.back(),
+          },
+        ]);
+        return;
       } else if (error?.message) {
         errorMessage += `\n\nError: ${error.message}`;
       }
