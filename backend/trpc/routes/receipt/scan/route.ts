@@ -2,14 +2,7 @@ import { z } from "zod";
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
-
-const ReceiptDataSchema = z.object({
-  merchant: z.string().describe('Name of the merchant/vendor'),
-  amount: z.number().describe('Total amount paid'),
-  date: z.string().describe('Date of purchase in YYYY-MM-DD format'),
-  category: z.enum(['fuel', 'maintenance', 'insurance', 'permits', 'tolls', 'parking', 'food', 'lodging', 'repairs', 'tires', 'other']).describe('Expense category - choose the most appropriate category from: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, or other'),
-  items: z.array(z.string()).describe('List of items purchased').optional(),
-});
+import { TRPCError } from '@trpc/server';
 
 export default publicProcedure
   .input(z.object({ 
@@ -25,10 +18,18 @@ export default publicProcedure
       }
 
       console.log('[Receipt Scan] Calling OpenAI Vision API...');
+      console.log('[Receipt Scan] OpenAI Key present:', !!process.env.OPENAI_API_KEY);
+      console.log('[Receipt Scan] Image data prefix:', input.base64Image.substring(0, 50));
       
       const result = await generateObject({
         model: openai('gpt-4o-mini'),
-        schema: ReceiptDataSchema,
+        schema: z.object({
+          merchant: z.string().describe('Name of the merchant/vendor'),
+          amount: z.number().describe('Total amount paid'),
+          date: z.string().describe('Date of purchase in YYYY-MM-DD format'),
+          category: z.enum(['fuel', 'maintenance', 'insurance', 'permits', 'tolls', 'parking', 'food', 'lodging', 'repairs', 'tires', 'other']).describe('Expense category'),
+          items: z.array(z.string()).describe('List of items purchased').optional(),
+        }),
         messages: [
           {
             role: 'user',
@@ -46,19 +47,44 @@ export default publicProcedure
         ],
       });
 
-      console.log('[Receipt Scan] AI response received:', JSON.stringify(result.object, null, 2));
+      console.log('[Receipt Scan] AI response received');
+      console.log('[Receipt Scan] Result object:', JSON.stringify(result.object, null, 2));
       
       if (!result.object || typeof result.object !== 'object') {
-        console.error('[Receipt Scan] Invalid result from AI:', result);
+        console.error('[Receipt Scan] Invalid result from AI - result:', JSON.stringify(result));
         throw new Error('Invalid response from AI service');
       }
 
-      return result.object;
-    } catch (error) {
+      const responseData = {
+        merchant: result.object.merchant,
+        amount: result.object.amount,
+        date: result.object.date,
+        category: result.object.category,
+        items: result.object.items,
+      };
+
+      console.log('[Receipt Scan] Returning data:', JSON.stringify(responseData));
+      return responseData;
+    } catch (error: any) {
       console.error('[Receipt Scan] Error:', error);
-      console.error('[Receipt Scan] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[Receipt Scan] Error name:', error?.name);
+      console.error('[Receipt Scan] Error message:', error?.message);
+      console.error('[Receipt Scan] Error stack:', error?.stack);
+      console.error('[Receipt Scan] Error cause:', error?.cause);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      throw new Error(`Failed to scan receipt: ${errorMessage}`);
+      const errorDetails = {
+        name: error?.name || 'Error',
+        message: errorMessage,
+        cause: error?.cause ? String(error.cause) : undefined,
+      };
+      
+      console.error('[Receipt Scan] Error details:', JSON.stringify(errorDetails));
+      
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: `Failed to scan receipt: ${errorMessage}`,
+        cause: error,
+      });
     }
   });

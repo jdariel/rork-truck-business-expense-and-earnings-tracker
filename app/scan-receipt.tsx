@@ -182,16 +182,34 @@ export default function ScanReceiptScreen() {
 
       const result = await scanMutation.mutateAsync({ base64Image });
       console.log('[ScanReceipt] Success:', result);
+      console.log('[ScanReceipt] Result type:', typeof result);
+      console.log('[ScanReceipt] Result keys:', result ? Object.keys(result) : 'null');
+      
+      if (!result || typeof result !== 'object') {
+        console.error('[ScanReceipt] Invalid result format:', result);
+        throw new Error('Invalid response format from server');
+      }
       
       setReceiptData(result);
       setProcessing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ScanReceipt] Error processing:', error);
+      console.error('[ScanReceipt] Error type:', typeof error);
+      console.error('[ScanReceipt] Error name:', error?.name);
+      console.error('[ScanReceipt] Error message:', error?.message);
+      console.error('[ScanReceipt] Error data:', error?.data);
+      console.error('[ScanReceipt] Error cause:', error?.cause);
+      console.error('[ScanReceipt] Full error:', JSON.stringify(error, null, 2));
       setProcessing(false);
+
+      let errorMessage = 'Unable to extract data from the receipt.';
+      if (error?.message) {
+        errorMessage += `\n\nError: ${error.message}`;
+      }
 
       Alert.alert(
         'Processing Failed',
-        'Unable to extract data from the receipt. Would you like to enter the details manually?',
+        errorMessage + ' Would you like to enter the details manually?',
         [
           {
             text: 'Enter Manually',

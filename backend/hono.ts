@@ -44,4 +44,16 @@ app.get("/api", (c) => {
   return c.json({ status: "ok", message: "API endpoint is running" });
 });
 
+app.get("/api/health", (c) => {
+  return c.json({ 
+    status: "ok", 
+    message: "Health check passed",
+    env: {
+      hasOpenAI: !!process.env.OPENAI_API_KEY,
+      nodeEnv: process.env.NODE_ENV,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 export default app;
