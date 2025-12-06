@@ -56,4 +56,32 @@ app.get("/api/health", (c) => {
   });
 });
 
+app.post("/api/test-receipt", async (c) => {
+  try {
+    console.log('[Test Receipt] Endpoint called');
+    const body = await c.req.json();
+    console.log('[Test Receipt] Body received:', Object.keys(body));
+    
+    if (!process.env.OPENAI_API_KEY) {
+      return c.json({
+        error: 'OpenAI API key not configured',
+        hasKey: false,
+      }, 500);
+    }
+    
+    return c.json({
+      success: true,
+      message: 'Test endpoint working',
+      hasKey: true,
+      imageLength: body.base64Image?.length || 0,
+    });
+  } catch (error: any) {
+    console.error('[Test Receipt] Error:', error);
+    return c.json({
+      error: error.message,
+      stack: error.stack,
+    }, 500);
+  }
+});
+
 export default app;
