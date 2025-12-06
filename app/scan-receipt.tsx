@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Camera, X, Sparkles, ImageIcon, ClipboardCheck, Edit3 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
 import { useTheme } from '@/hooks/theme-store';
 import { useSubscription } from '@/hooks/subscription-store';
 import { useBusiness } from '@/hooks/business-store';
@@ -49,55 +50,50 @@ const parseAmountValue = (value: string) => {
 export default function ScanReceiptScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { addExpense } = useBusiness();
   const { hasFeatureAccess, isLoading: subscriptionLoading } = useSubscription();
-  const insets = useSafeAreaInsets();
+
   const [permission, requestPermission] = useCameraPermissions();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSavingExpense, setIsSavingExpense] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
-  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const permissionRequestInFlight = useRef(false);
-  const scanMutation = trpc.receipt.scan.useMutation();
 
+  const [cameraReady, setCameraReady] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [savingExpense, setSavingExpense] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
+
+  const scanMutation = trpc.receipt.scan.useMutation();
   const hasAccess = !subscriptionLoading && hasFeatureAccess('receiptScanner');
 
+  //--------------------------------------------------------------------
+  // Lifecycle Logging
+  //--------------------------------------------------------------------
   useEffect(() => {
-    console.log('ScanReceiptScreen mounted');
-    console.log('Permission status:', permission?.granted);
-    console.log('Has access:', hasAccess);
-    console.log('Subscription loading:', subscriptionLoading);
-
-    return () => {
-      console.log('ScanReceiptScreen unmounted');
-    };
+    console.log('[ScanReceipt] Mounted');
+    console.log('[ScanReceipt] Permission:', permission?.granted);
+    console.log('[ScanReceipt] Has access:', hasAccess);
+    console.log('[ScanReceipt] Subscription loading:', subscriptionLoading);
+    return () => console.log('[ScanReceipt] Unmounted');
   }, [hasAccess, permission?.granted, subscriptionLoading]);
 
+  //--------------------------------------------------------------------
+  // Permission Handling
+  //--------------------------------------------------------------------
   useEffect(() => {
-    if (!requestPermission) {
-      return;
-    }
-
-    if (permission?.status === 'granted' || permission?.status === 'denied') {
-      return;
-    }
-
-    if (permissionRequestInFlight.current) {
-      return;
-    }
+    if (!requestPermission || !permission) return;
+    if (permission.status === 'granted' || permission.status === 'denied') return;
+    if (permissionRequestInFlight.current) return;
 
     permissionRequestInFlight.current = true;
-    console.log('Requesting camera permission...');
+    console.log('[ScanReceipt] Requesting camera permission...');
 
     requestPermission()
-      .then(result => {
-        console.log('Camera permission response:', result?.granted);
-      })
+      .then(result => console.log('[ScanReceipt] Permission granted:', result?.granted))
       .catch(error => {
-        console.error('Failed to request camera permission:', error);
+        console.error('[ScanReceipt] Permission error:', error);
         Alert.alert(
           'Camera Permission Error',
           'Unable to access the camera. Please enable permissions in your system settings.'
@@ -109,44 +105,54 @@ export default function ScanReceiptScreen() {
   }, [permission, requestPermission]);
 
   useEffect(() => {
-    if (permission?.granted) {
-      setIsCameraReady(false);
-    }
+    if (permission?.granted) setCameraReady(false);
   }, [permission?.granted]);
 
+  //--------------------------------------------------------------------
+  // Sync Draft from Extracted Data
+  //--------------------------------------------------------------------
   useEffect(() => {
-    if (extractedData) {
+    if (receiptData) {
       setExpenseDraft({
-        merchant: extractedData.merchant,
-        amount: extractedData.amount.toFixed(2),
-        date: extractedData.date,
-        category: extractedData.category,
-        notes: extractedData.items?.join(', ') ?? '',
+        merchant: receiptData.merchant,
+        amount: receiptData.amount.toFixed(2),
+        date: receiptData.date,
+        category: receiptData.category,
+        notes: receiptData.items?.join(', ') ?? '',
       });
     } else {
       setExpenseDraft(null);
     }
-  }, [extractedData]);
+  }, [receiptData]);
 
+  //--------------------------------------------------------------------
+  // Camera Ready Callback
+  //--------------------------------------------------------------------
   const handleCameraReady = useCallback(() => {
-    console.log('Camera is ready');
-    setIsCameraReady(true);
+    console.log('[ScanReceipt] Camera ready');
+    setCameraReady(true);
   }, []);
 
+  //--------------------------------------------------------------------
+  // Draft Field Updates
+  //--------------------------------------------------------------------
   const handleDraftChange = useCallback(<K extends keyof ExpenseDraft>(key: K, value: ExpenseDraft[K]) => {
     setExpenseDraft(prev => (prev ? { ...prev, [key]: value } : prev));
   }, []);
 
+  //--------------------------------------------------------------------
+  // Take Picture
+  //--------------------------------------------------------------------
   const takePicture = async () => {
     if (!cameraRef.current) {
-      console.log('Camera ref is null');
+      console.log('[ScanReceipt] Camera ref is null');
       return;
     }
 
-    console.log('Taking picture...');
+    console.log('[ScanReceipt] Taking picture...');
 
     try {
-      setIsProcessing(true);
+      setProcessing(true);
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.5,
         base64: true,
@@ -154,31 +160,34 @@ export default function ScanReceiptScreen() {
 
       if (!photo) {
         Alert.alert('Error', 'Failed to capture image');
-        setIsProcessing(false);
+        setProcessing(false);
         return;
       }
 
-      setCapturedImage(photo.uri);
+      setImageUri(photo.uri);
       await processReceipt(photo.base64!);
     } catch (error) {
-      console.error('Error taking picture:', error);
+      console.error('[ScanReceipt] Error taking picture:', error);
       Alert.alert('Error', 'Failed to capture image. Please try again.');
-      setIsProcessing(false);
+      setProcessing(false);
     }
   };
 
+  //--------------------------------------------------------------------
+  // Process Receipt with AI
+  //--------------------------------------------------------------------
   const processReceipt = async (base64Image: string) => {
     try {
-      console.log('Processing receipt with AI...');
-      console.log('Base64 image length:', base64Image.length);
+      console.log('[ScanReceipt] Processing with AI... (image length:', base64Image.length, ')');
 
       const result = await scanMutation.mutateAsync({ base64Image });
-      console.log('Receipt processed successfully:', result);
-      setExtractedData(result);
-      setIsProcessing(false);
+      console.log('[ScanReceipt] Success:', result);
+      
+      setReceiptData(result);
+      setProcessing(false);
     } catch (error) {
-      console.error('Error processing receipt:', error);
-      setIsProcessing(false);
+      console.error('[ScanReceipt] Error processing:', error);
+      setProcessing(false);
 
       Alert.alert(
         'Processing Failed',
@@ -190,7 +199,7 @@ export default function ScanReceiptScreen() {
           },
           {
             text: 'Retake Photo',
-            onPress: retakePhoto,
+            onPress: reset,
             style: 'cancel',
           },
         ]
@@ -198,63 +207,49 @@ export default function ScanReceiptScreen() {
     }
   };
 
-  const retakePhoto = () => {
-    setCapturedImage(null);
-    setExtractedData(null);
+  //--------------------------------------------------------------------
+  // Reset State
+  //--------------------------------------------------------------------
+  const reset = () => {
+    setImageUri(null);
+    setReceiptData(null);
     setExpenseDraft(null);
-    setIsProcessing(false);
+    setProcessing(false);
   };
 
-  const showManualEntryOption = () => {
-    Alert.alert(
-      'Receipt Captured',
-      'AI extraction is currently unavailable. Would you like to enter the expense details manually while viewing your receipt?',
-      [
-        {
-          text: 'Enter Manually',
-          onPress: () => {
-            router.push('/add-expense');
-          },
-        },
-        {
-          text: 'Retake Photo',
-          onPress: retakePhoto,
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  const pickImageFromGallery = async () => {
+  //--------------------------------------------------------------------
+  // Pick from Gallery
+  //--------------------------------------------------------------------
+  const pickFromGallery = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
         quality: 0.5,
         base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setCapturedImage(asset.uri);
-        setIsProcessing(true);
+        setImageUri(asset.uri);
+        
         if (asset.base64) {
+          setProcessing(true);
           await processReceipt(asset.base64);
         } else {
-          setIsProcessing(false);
-          showManualEntryOption();
+          Alert.alert('Error', 'Failed to read image data');
         }
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('[ScanReceipt] Gallery error:', error);
       Alert.alert('Error', 'Failed to pick image from gallery');
     }
   };
 
+  //--------------------------------------------------------------------
+  // Open Full Editor
+  //--------------------------------------------------------------------
   const openManualEditor = () => {
-    if (!expenseDraft) {
-      return;
-    }
+    if (!expenseDraft) return;
 
     router.push({
       pathname: '/add-expense',
@@ -268,10 +263,11 @@ export default function ScanReceiptScreen() {
     });
   };
 
+  //--------------------------------------------------------------------
+  // Save Expense
+  //--------------------------------------------------------------------
   const handleSaveExpense = async () => {
-    if (!expenseDraft) {
-      return;
-    }
+    if (!expenseDraft) return;
 
     const parsedAmount = parseAmountValue(expenseDraft.amount);
     if (!expenseDraft.merchant.trim() || parsedAmount <= 0) {
@@ -281,8 +277,9 @@ export default function ScanReceiptScreen() {
 
     const normalizedDate = expenseDraft.date?.trim() || new Date().toISOString().split('T')[0];
 
-    setIsSavingExpense(true);
-    console.log('Saving expense from receipt:', expenseDraft);
+    setSavingExpense(true);
+    console.log('[ScanReceipt] Saving expense:', expenseDraft);
+    
     try {
       await addExpense({
         date: normalizedDate,
@@ -290,10 +287,10 @@ export default function ScanReceiptScreen() {
         amount: parsedAmount,
         description: expenseDraft.merchant.trim(),
         notes: expenseDraft.notes.trim() ? expenseDraft.notes.trim() : undefined,
-        receiptImage: capturedImage ?? undefined,
+        receiptImage: imageUri ?? undefined,
       });
 
-      retakePhoto();
+      reset();
 
       Alert.alert(
         'Expense Saved',
@@ -311,82 +308,37 @@ export default function ScanReceiptScreen() {
         ]
       );
     } catch (error) {
-      console.error('Failed to save expense from receipt:', error);
+      console.error('[ScanReceipt] Save failed:', error);
       Alert.alert('Save Failed', 'We could not save this expense. Please try again or edit manually.');
     } finally {
-      setIsSavingExpense(false);
+      setSavingExpense(false);
     }
   };
 
+  //--------------------------------------------------------------------
+  // Render Conditions
+  //--------------------------------------------------------------------
   if (subscriptionLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
+    return <LoadingScreen theme={theme} />;
   }
 
   if (!hasAccess) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <View style={styles.permissionContainer}>
-          <Sparkles size={64} color={theme.primary} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>Premium Feature</Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>Receipt scanning with AI is a premium feature. Upgrade to Rork Pro to automatically extract expense data from receipts.</Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push('/upgrade')}
-          >
-            <Text style={styles.permissionButtonText}>Upgrade to Pro</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <PremiumBlockedScreen theme={theme} router={router} />;
   }
 
   if (!permission) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
+    return <LoadingScreen theme={theme} />;
   }
 
   if (!permission.granted) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <View style={styles.permissionContainer}>
-          <Camera size={64} color={theme.text} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Permission Required</Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>We need access to your camera to scan receipts and extract expense data automatically.</Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
-            onPress={requestPermission}
-          >
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <PermissionBlockedScreen theme={theme} requestPermission={requestPermission} router={router} />;
   }
 
-  if (capturedImage) {
-    if (extractedData && expenseDraft) {
+  if (imageUri) {
+    if (receiptData && expenseDraft) {
       return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}> 
-          <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}> 
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+          <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}>
             <TouchableOpacity
               style={[styles.closeButton, { backgroundColor: theme.border }]}
               onPress={() => router.back()}
@@ -408,45 +360,45 @@ export default function ScanReceiptScreen() {
               <Text style={styles.heroSubtitle}>Refine the AI data below or save instantly</Text>
             </LinearGradient>
 
-            <View style={[styles.receiptCard, { backgroundColor: theme.card }]}> 
+            <View style={[styles.receiptCard, { backgroundColor: theme.card }]}>
               <Image
-                source={{ uri: capturedImage }}
+                source={{ uri: imageUri }}
                 style={styles.receiptImage}
                 resizeMode="cover"
               />
               <TouchableOpacity
                 style={styles.retakeLink}
-                onPress={retakePhoto}
+                onPress={reset}
                 testID="retake-photo-button"
               >
                 <Text style={styles.retakeLinkText}>Retake photo</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.dataCard, { backgroundColor: theme.surface }]}> 
+            <View style={[styles.dataCard, { backgroundColor: theme.surface }]}>
               <View style={styles.dataRow}>
                 <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Merchant</Text>
-                <Text style={[styles.dataValue, { color: theme.text }]}>{extractedData.merchant}</Text>
+                <Text style={[styles.dataValue, { color: theme.text }]}>{receiptData.merchant}</Text>
               </View>
               <View style={styles.dataRow}>
                 <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Amount</Text>
-                <Text style={[styles.dataValue, { color: theme.success }]}>${extractedData.amount.toFixed(2)}</Text>
+                <Text style={[styles.dataValue, { color: theme.success }]}>${receiptData.amount.toFixed(2)}</Text>
               </View>
               <View style={styles.dataRow}>
                 <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Date</Text>
-                <Text style={[styles.dataValue, { color: theme.text }]}>{new Date(extractedData.date).toLocaleDateString()}</Text>
+                <Text style={[styles.dataValue, { color: theme.text }]}>{new Date(receiptData.date).toLocaleDateString()}</Text>
               </View>
               <View style={styles.dataRow}>
                 <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Category</Text>
                 <Text style={[styles.dataValue, { color: theme.text }]}>
-                  {extractedData.category.charAt(0).toUpperCase() + extractedData.category.slice(1)}
+                  {receiptData.category.charAt(0).toUpperCase() + receiptData.category.slice(1)}
                 </Text>
               </View>
-              {extractedData.items && extractedData.items.length > 0 && (
+              {receiptData.items && receiptData.items.length > 0 && (
                 <View style={styles.dataRow}>
                   <Text style={[styles.dataLabel, { color: theme.textSecondary }]}>Items</Text>
                   <View style={styles.itemsList}>
-                    {extractedData.items.map((item, index) => (
+                    {receiptData.items.map((item, index) => (
                       <Text key={index} style={[styles.itemText, { color: theme.text }]}>
                         • {item}
                       </Text>
@@ -549,16 +501,16 @@ export default function ScanReceiptScreen() {
             <TouchableOpacity
               style={[styles.confirmButton, { backgroundColor: theme.success }]}
               onPress={handleSaveExpense}
-              disabled={isSavingExpense}
+              disabled={savingExpense}
               testID="save-expense-button"
             >
-              {isSavingExpense ? (
+              {savingExpense ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <ClipboardCheck size={20} color="#fff" />
               )}
               <Text style={styles.confirmButtonText}>
-                {isSavingExpense ? 'Saving...' : 'Save to Expenses'}
+                {savingExpense ? 'Saving...' : 'Save to Expenses'}
               </Text>
             </TouchableOpacity>
 
@@ -575,79 +527,29 @@ export default function ScanReceiptScreen() {
       );
     }
 
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}> 
-          <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: theme.border }]}
-            onPress={() => router.back()}
-          >
-            <X size={24} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-        <ScrollView contentContainerStyle={styles.imagePreviewContainer}>
-          <Image
-            source={{ uri: capturedImage }}
-            style={styles.previewImage}
-            resizeMode="contain"
-          />
-          <View style={styles.previewActions}>
-            <TouchableOpacity
-              style={[styles.previewButton, { backgroundColor: theme.primary }]}
-              onPress={() => router.push('/add-expense')}
-            >
-              <Text style={styles.previewButtonText}>Enter Details Manually</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.previewButton, { backgroundColor: theme.border }]}
-              onPress={retakePhoto}
-            >
-              <Text style={[styles.previewButtonText, { color: theme.text }]}>Retake Photo</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </View>
-    );
+    return <ImagePreviewScreen theme={theme} imageUri={imageUri} onRetake={reset} router={router} />;
   }
 
   if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}> 
-        <View style={styles.permissionContainer}>
-          <Camera size={64} color={theme.text} style={styles.permissionIcon} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Not Available</Text>
-          <Text style={[styles.permissionText, { color: theme.textSecondary }]}>Receipt scanning is not available on web. Please use the mobile app to scan receipts.</Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.permissionButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <WebBlockedScreen theme={theme} router={router} />;
   }
 
+  //--------------------------------------------------------------------
+  // Main Camera UI
+  //--------------------------------------------------------------------
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]} testID="scan-receipt-screen"> 
+    <View style={[styles.container, { backgroundColor: theme.background }]} testID="scan-receipt-screen">
       <CameraView
         ref={cameraRef}
         style={styles.camera}
         facing={'back' as CameraType}
         onCameraReady={handleCameraReady}
       >
-        {!isCameraReady && (
-          <View style={styles.cameraLoadingOverlay} testID="camera-loading-overlay">
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.processingText}>Initializing camera...</Text>
-          </View>
-        )}
+        {!cameraReady && <CameraInitOverlay />}
+        
         <View style={styles.overlay}>
           <View style={[styles.topBar, { paddingTop: insets.top + 20 }]}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
               <X size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -658,16 +560,13 @@ export default function ScanReceiptScreen() {
           </View>
 
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 40 }]}>
-            {isProcessing ? (
-              <View style={styles.processingContainer}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.processingText}>Processing receipt...</Text>
-              </View>
+            {processing ? (
+              <ProcessingOverlay />
             ) : (
               <View style={styles.captureActions}>
                 <TouchableOpacity
                   style={styles.galleryButton}
-                  onPress={pickImageFromGallery}
+                  onPress={pickFromGallery}
                   testID="open-gallery-button"
                 >
                   <ImageIcon size={24} color="#fff" />
@@ -689,10 +588,128 @@ export default function ScanReceiptScreen() {
   );
 }
 
+//--------------------------------------------------------------------
+// Subcomponents
+//--------------------------------------------------------------------
+const LoadingScreen = ({ theme }: { theme: any }) => (
+  <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+    <ActivityIndicator size="large" color={theme.primary} />
+  </View>
+);
+
+const PremiumBlockedScreen = ({ theme, router }: { theme: any; router: any }) => (
+  <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.permissionContainer}>
+      <Sparkles size={64} color={theme.primary} style={styles.permissionIcon} />
+      <Text style={[styles.permissionTitle, { color: theme.text }]}>Premium Feature</Text>
+      <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
+        Receipt scanning with AI is a premium feature. Upgrade to Rork Pro to automatically extract expense data from receipts.
+      </Text>
+      <TouchableOpacity
+        style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+        onPress={() => router.push('/upgrade')}
+      >
+        <Text style={styles.permissionButtonText}>Upgrade to Pro</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+        <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Go Back</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const PermissionBlockedScreen = ({ theme, requestPermission, router }: { theme: any; requestPermission: any; router: any }) => (
+  <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.permissionContainer}>
+      <Camera size={64} color={theme.text} style={styles.permissionIcon} />
+      <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Permission Required</Text>
+      <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
+        We need access to your camera to scan receipts and extract expense data automatically.
+      </Text>
+      <TouchableOpacity
+        style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+        onPress={requestPermission}
+      >
+        <Text style={styles.permissionButtonText}>Grant Permission</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+        <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const WebBlockedScreen = ({ theme, router }: { theme: any; router: any }) => (
+  <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.permissionContainer}>
+      <Camera size={64} color={theme.text} style={styles.permissionIcon} />
+      <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Not Available</Text>
+      <Text style={[styles.permissionText, { color: theme.textSecondary }]}>
+        Receipt scanning is not available on web. Please use the mobile app to scan receipts.
+      </Text>
+      <TouchableOpacity
+        style={[styles.permissionButton, { backgroundColor: theme.primary }]}
+        onPress={() => router.back()}
+      >
+        <Text style={styles.permissionButtonText}>Go Back</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const CameraInitOverlay = () => (
+  <View style={styles.cameraLoadingOverlay} testID="camera-loading-overlay">
+    <ActivityIndicator size="large" color="#fff" />
+    <Text style={styles.processingText}>Initializing camera...</Text>
+  </View>
+);
+
+const ProcessingOverlay = () => (
+  <View style={styles.processingContainer}>
+    <ActivityIndicator size="large" color="#fff" />
+    <Text style={styles.processingText}>Processing receipt...</Text>
+  </View>
+);
+
+const ImagePreviewScreen = ({ theme, imageUri, onRetake, router }: { theme: any; imageUri: string; onRetake: () => void; router: any }) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 20, backgroundColor: theme.card }]}>
+        <TouchableOpacity
+          style={[styles.closeButton, { backgroundColor: theme.border }]}
+          onPress={() => router.back()}
+        >
+          <X size={24} color={theme.text} />
+        </TouchableOpacity>
+      </View>
+      <ScrollView contentContainerStyle={styles.imagePreviewContainer}>
+        <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
+        <View style={styles.previewActions}>
+          <TouchableOpacity
+            style={[styles.previewButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push('/add-expense')}
+          >
+            <Text style={styles.previewButtonText}>Enter Details Manually</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.previewButton, { backgroundColor: theme.border }]}
+            onPress={onRetake}
+          >
+            <Text style={[styles.previewButtonText, { color: theme.text }]}>Retake Photo</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+//--------------------------------------------------------------------
+// Styles
+//--------------------------------------------------------------------
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  center: { justifyContent: 'center', alignItems: 'center' },
   camera: {
     flex: 1,
   },
