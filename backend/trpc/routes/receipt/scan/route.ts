@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { publicProcedure } from "@/backend/trpc/create-context";
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
+import OpenAI from 'openai';
 import { TRPCError } from '@trpc/server';
 
 export default publicProcedure
@@ -21,46 +20,60 @@ export default publicProcedure
       console.log('[Receipt Scan] OpenAI Key present:', !!process.env.OPENAI_API_KEY);
       console.log('[Receipt Scan] Image data prefix:', input.base64Image.substring(0, 50));
       
-      const result = await generateObject({
-        model: openai('gpt-4o-mini'),
-        schema: z.object({
-          merchant: z.string().describe('Name of the merchant/vendor'),
-          amount: z.number().describe('Total amount paid'),
-          date: z.string().describe('Date of purchase in YYYY-MM-DD format'),
-          category: z.enum(['fuel', 'maintenance', 'insurance', 'permits', 'tolls', 'parking', 'food', 'lodging', 'repairs', 'tires', 'other']).describe('Expense category'),
-          items: z.array(z.string()).describe('List of items purchased').optional(),
-        }),
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      const completion = await openaiClient.chat.completions.create({
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract the receipt information from this image. Identify the merchant name, total amount, date (in YYYY-MM-DD format), and categorize the expense. Categories: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other. If items are clearly visible, list them. Be as accurate as possible.',
+                text: 'Extract the receipt information from this image and return a JSON object with the following structure: {"merchant": string, "amount": number, "date": string (YYYY-MM-DD), "category": string (one of: fuel, maintenance, insurance, permits, tolls, parking, food, lodging, repairs, tires, other), "items": array of strings (optional)}. Be as accurate as possible.',
               },
               {
-                type: 'image',
-                image: `data:image/jpeg;base64,${input.base64Image}`,
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${input.base64Image}`,
+                },
               },
             ],
           },
         ],
+        response_format: { type: 'json_object' },
       });
 
       console.log('[Receipt Scan] AI response received');
-      console.log('[Receipt Scan] Result object:', JSON.stringify(result.object, null, 2));
+      console.log('[Receipt Scan] Full completion:', JSON.stringify(completion, null, 2));
       
-      if (!result.object || typeof result.object !== 'object') {
-        console.error('[Receipt Scan] Invalid result from AI - result:', JSON.stringify(result));
-        throw new Error('Invalid response from AI service');
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        console.error('[Receipt Scan] No content in response');
+        throw new Error('No response from AI service');
       }
 
+      console.log('[Receipt Scan] Raw content:', content);
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch (parseError) {
+        console.error('[Receipt Scan] Failed to parse JSON:', parseError);
+        console.error('[Receipt Scan] Content that failed to parse:', content);
+        throw new Error('Failed to parse AI response');
+      }
+
+      console.log('[Receipt Scan] Parsed object:', JSON.stringify(parsed, null, 2));
+
       const responseData = {
-        merchant: result.object.merchant,
-        amount: result.object.amount,
-        date: result.object.date,
-        category: result.object.category,
-        items: result.object.items,
+        merchant: String(parsed.merchant || 'Unknown'),
+        amount: Number(parsed.amount) || 0,
+        date: String(parsed.date || new Date().toISOString().split('T')[0]),
+        category: parsed.category || 'other',
+        items: Array.isArray(parsed.items) ? parsed.items : [],
       };
 
       console.log('[Receipt Scan] Returning data:', JSON.stringify(responseData));
